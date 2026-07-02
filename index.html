@@ -1,0 +1,2526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Desk — Label Roll Order Management System</title>
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --paper-line:#DCD5C3;
+    --ink:#2B2620;
+    --ink-soft:#6B6354;
+    --rust:#A8501F;
+    --rust-dark:#7E3A14;
+    --green:#3F5B3F;
+    --green-pale:#E7ECE3;
+    --amber:#9C6B12;
+    --amber-pale:#F3E9D2;
+    --blue:#2F5276;
+    --blue-pale:#E2EAF1;
+    --red:#9B2C2C;
+    --red-pale:#F3E0E0;
+    --card:#FFFEFB;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Iowan Old Style','Palatino Linotype', Georgia, serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .utility{ font-family:'Courier New', ui-monospace, monospace; letter-spacing:0.02em; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:#C7BCA3; }
+
+  /* ===== Top bar ===== */
+  header.topbar{
+    background:var(--ink);
+    color:var(--paper);
+    padding:16px 28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:4px double var(--rust);
+    position:sticky; top:0; z-index:50;
+  }
+  header.topbar .brand{ font-size:1.3rem; letter-spacing:0.03em; font-weight:700; }
+  header.topbar .brand small{
+    display:block; font-family:'Courier New', monospace; font-size:0.6rem;
+    letter-spacing:0.16em; color:#C7BCA3; margin-top:3px; text-transform:uppercase;
+  }
+  .mode-switch{ display:flex; gap:0; border:1px solid #5d574a; }
+  .mode-switch button{
+    appearance:none; border:none; background:transparent; color:#C7BCA3;
+    font-family:inherit; font-size:0.8rem; letter-spacing:0.04em; text-transform:uppercase;
+    padding:9px 20px; cursor:pointer;
+  }
+  .mode-switch button.active{ background:var(--rust); color:#fff; }
+
+  .session-info{ display:flex; align-items:center; gap:14px; font-size:0.85rem; }
+  .session-info button{ background:transparent; color:var(--paper); border:1px solid #5d574a; }
+  .session-info button:hover{ background:#3a3527; border-color:#3a3527; color:#fff; }
+
+  /* ===== Login screen ===== */
+  .login-tab-panel{ max-width:420px; }
+  .login-hint{ font-size:0.82rem; color:var(--ink-soft); margin-top:18px; }
+  .login-hint a{ color:var(--rust); text-decoration:none; font-weight:700; }
+  .login-hint a:hover{ text-decoration:underline; }
+  .login-hint.utility{ font-size:0.74rem; }
+
+  /* ===== Sub nav ===== */
+  nav.subnav{
+    display:flex; gap:0; background:var(--card);
+    border-bottom:1px solid var(--paper-line); overflow-x:auto;
+    position:sticky; top:65px; z-index:40;
+  }
+  nav.subnav button{
+    appearance:none; border:none; background:transparent; font-family:inherit;
+    font-size:0.82rem; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-soft);
+    padding:14px 22px; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap;
+  }
+  nav.subnav button.active{ color:var(--ink); border-bottom-color:var(--rust); font-weight:700; }
+  nav.subnav button .badge{
+    display:inline-block; margin-left:6px; background:var(--rust); color:#fff;
+    font-size:0.68rem; padding:1px 6px; border-radius:8px; font-family:'Courier New', monospace;
+  }
+
+  main{ max-width:1080px; margin:0 auto; padding:30px 24px 80px; }
+
+  .panel{
+    background:var(--card); border:1px solid var(--paper-line);
+    box-shadow:0 2px 10px rgba(43,38,32,0.06); padding:32px 36px; position:relative; margin-bottom:24px;
+  }
+  .panel::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:6px;
+    background:repeating-linear-gradient(45deg, var(--rust) 0 8px, transparent 8px 16px); opacity:0.6;
+  }
+  h1.panel-title{ font-size:1.4rem; margin:6px 0 4px; }
+  h2.section-title{ font-size:1.1rem; margin:0 0 14px; padding-top:4px; }
+  p.panel-sub{ color:var(--ink-soft); margin:0 0 26px; font-size:0.93rem; }
+
+  /* ===== Generic form bits ===== */
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:22px 26px; }
+  .grid.cols-3{ grid-template-columns:1fr 1fr 1fr; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field.full{ grid-column:1/-1; }
+  label{ font-size:0.76rem; letter-spacing:0.05em; text-transform:uppercase; color:var(--ink-soft); display:flex; justify-content:space-between; }
+  label .req{ color:var(--rust); font-weight:700; }
+  label .opt{ font-style:italic; color:#A89F8C; text-transform:none; letter-spacing:0; }
+  input[type=text], input[type=email], input[type=tel], input[type=number], input[type=search], textarea, select{
+    font-family:'Courier New', ui-monospace, monospace; font-size:0.93rem; padding:10px 12px;
+    border:none; border-bottom:1px solid #C7BCA3; background:transparent; color:var(--ink); outline:none;
+    transition:border-color .15s, background .15s;
+  }
+  select{ background:#FBF9F4; }
+  textarea{ resize:vertical; min-height:56px; font-family:inherit; }
+  input:focus, textarea:focus, select:focus{ border-bottom:2px solid var(--rust); background:#FBF9F4; }
+  input.invalid, textarea.invalid, select.invalid{ border-bottom:2px solid var(--red); background:#FBF1F1; }
+  .errmsg{ font-size:0.74rem; color:var(--red); min-height:1em; font-family:'Courier New', monospace; }
+  .hint{ font-size:0.7rem; color:#A89F8C; font-family:'Courier New', monospace; }
+
+  .copy-row{ display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--ink-soft); }
+  .copy-row input[type=checkbox]{ accent-color:var(--rust); width:15px; height:15px; }
+
+  .actions{ margin-top:30px; display:flex; justify-content:flex-end; gap:12px; border-top:1px dashed var(--paper-line); padding-top:22px; flex-wrap:wrap; }
+  .actions.split{ justify-content:space-between; }
+
+  button.btn{
+    font-family:inherit; font-size:0.83rem; letter-spacing:0.04em; text-transform:uppercase;
+    padding:12px 22px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); cursor:pointer;
+    transition:background .15s; white-space:nowrap;
+  }
+  button.btn:hover{ background:var(--rust-dark); border-color:var(--rust-dark); }
+  button.btn:active{ transform:translateY(1px); }
+  button.btn.secondary{ background:transparent; color:var(--ink); border:1px solid #C7BCA3; }
+  button.btn.secondary:hover{ border-color:var(--ink); background:#F0ECE2; }
+  button.btn.danger{ background:transparent; color:var(--red); border:1px solid var(--red); }
+  button.btn.danger:hover{ background:var(--red-pale); }
+  button.btn.small{ padding:7px 14px; font-size:0.72rem; }
+  button.btn:disabled{ background:#D8D2C2; border-color:#D8D2C2; color:#9A917D; cursor:not-allowed; }
+
+  /* ===== Tables ===== */
+  table.data-table{ width:100%; border-collapse:collapse; font-size:0.86rem; }
+  table.data-table th{
+    text-align:left; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft);
+    padding:10px 12px; border-bottom:1px solid var(--paper-line); white-space:nowrap;
+  }
+  table.data-table td{ padding:10px 12px; border-bottom:1px solid var(--paper-line); vertical-align:top; }
+  table.data-table td.num, table.data-table th.num{ text-align:right; font-family:'Courier New', monospace; }
+  table.data-table tbody tr:hover{ background:#FBF9F2; }
+  table.data-table tfoot td{ font-weight:700; border-top:2px solid var(--ink); border-bottom:none; color:var(--rust-dark); }
+
+  .status-pill{
+    display:inline-block; padding:4px 11px; font-size:0.68rem; text-transform:uppercase;
+    letter-spacing:0.05em; border-radius:3px; font-weight:700; font-family:'Courier New', monospace;
+  }
+  .status-pending{ background:var(--amber-pale); color:var(--amber); }
+  .status-approved{ background:var(--blue-pale); color:var(--blue); }
+  .status-dispatched{ background:#E6E1F0; color:#5B3F9C; }
+  .status-delivered{ background:var(--green-pale); color:var(--green); }
+  .status-cancelled{ background:var(--red-pale); color:var(--red); }
+  .locked-note{ font-size:0.78rem; color:var(--ink-soft); font-style:italic; }
+
+  select.status-select{ font-size:0.72rem; padding:5px 8px; border:1px solid #C7BCA3; background:#fff; }
+
+  /* ===== Dashboard cards ===== */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:8px; }
+  .stat-card{ border:1px solid var(--paper-line); background:#FFFEFB; padding:18px 20px; }
+  .stat-card .label{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); }
+  .stat-card .value{ font-family:'Courier New', monospace; font-size:1.7rem; font-weight:700; color:var(--rust-dark); margin-top:6px; }
+  .stat-card .sub{ font-size:0.74rem; color:var(--ink-soft); margin-top:4px; }
+  .stat-card.alert .value{ color:var(--red); }
+
+  /* ===== Report download cards ===== */
+  .report-row{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-top:8px; }
+  .report-card{ border:1px solid var(--paper-line); background:#FFFEFB; padding:18px 20px; display:flex; flex-direction:column; gap:10px; }
+  .report-card h3{ margin:0; font-size:1rem; }
+  .report-card .report-desc{ font-size:0.8rem; color:var(--ink-soft); margin:0; min-height:2.6em; }
+  .report-dates{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .report-dates .field label{ font-size:0.68rem; }
+  input[type=date]{
+    font-family:'Courier New', ui-monospace, monospace; font-size:0.85rem; padding:8px 10px;
+    border:none; border-bottom:1px solid #C7BCA3; background:#FBF9F4; color:var(--ink); outline:none;
+  }
+  input[type=date]:focus{ border-bottom:2px solid var(--rust); }
+
+  input[type=file]{
+    font-family:'Courier New', ui-monospace, monospace; font-size:0.84rem; padding:9px 0;
+    color:var(--ink); background:transparent; border:none; border-bottom:1px solid #C7BCA3;
+  }
+  input[type=file]::file-selector-button{
+    font-family:inherit; font-size:0.78rem; letter-spacing:0.03em; text-transform:uppercase;
+    padding:7px 14px; border:1px solid var(--ink); background:var(--ink); color:var(--paper);
+    cursor:pointer; margin-right:12px;
+  }
+  input[type=file]::file-selector-button:hover{ background:var(--rust-dark); border-color:var(--rust-dark); }
+
+  .doc-list{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .doc-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border:1px solid var(--paper-line); background:#FBF9F4; padding:7px 12px; font-size:0.8rem;
+  }
+  .doc-item .doc-name{ font-family:'Courier New', monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .doc-item .doc-size{ color:var(--ink-soft); font-size:0.72rem; flex-shrink:0; }
+  .doc-item button{
+    appearance:none; border:none; background:transparent; color:var(--red); cursor:pointer;
+    font-size:0.75rem; flex-shrink:0; text-decoration:underline;
+  }
+  .doc-item a{ color:var(--rust); text-decoration:none; font-weight:700; flex-shrink:0; }
+  .doc-item a:hover{ text-decoration:underline; }
+
+  /* ===== Catalog / product cards ===== */
+  .catalog-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; margin-top:8px; }
+  .item-card{ border:1px solid var(--paper-line); background:#FFFEFB; padding:16px 18px; display:flex; flex-direction:column; gap:8px; position:relative; }
+  .item-card .tag{ position:absolute; top:12px; right:14px; font-family:'Courier New', monospace; font-size:0.65rem; color:#A89F8C; }
+  .item-card h3{ margin:0; font-size:1rem; padding-right:60px; }
+  .item-card .supplier-tag{ font-size:0.74rem; color:var(--ink-soft); font-family:'Courier New', monospace; }
+  .item-card .item-total-qty{
+    font-size:0.8rem; color:var(--rust-dark); background:var(--amber-pale); border:1px solid #E0CFA0;
+    padding:6px 10px; margin-top:2px; font-family:'Courier New', monospace;
+  }
+  .item-card .specs{ display:flex; gap:14px; font-size:0.76rem; color:var(--ink-soft); font-family:'Courier New', monospace; flex-wrap:wrap; }
+  .item-card .stock-note{ font-size:0.74rem; }
+  .item-card .stock-ok{ color:var(--green); }
+  .item-card .stock-low{ color:var(--amber); }
+  .item-card .stock-out{ color:var(--red); font-weight:700; }
+  .item-card .price-row{ display:flex; justify-content:space-between; align-items:center; margin-top:4px; border-top:1px dashed var(--paper-line); padding-top:10px; }
+  .item-card .price{ font-family:'Courier New', monospace; font-size:1rem; font-weight:700; color:var(--rust-dark); }
+  .item-card .price span{ font-size:0.68rem; color:var(--ink-soft); font-weight:400; margin-left:3px; }
+  .qty-control{ display:flex; align-items:center; border:1px solid #C7BCA3; }
+  .qty-control button{ width:28px; height:28px; border:none; background:#F0ECE2; font-family:'Courier New', monospace; font-size:0.95rem; cursor:pointer; }
+  .qty-control button:hover{ background:#E2DCC8; }
+  .qty-control input{ width:42px; text-align:center; border:none; border-left:1px solid #C7BCA3; border-right:1px solid #C7BCA3; font-family:'Courier New', monospace; padding:6px 0; background:#fff; }
+  .item-card.disabled{ opacity:0.55; }
+
+  .cart-bar{
+    position:sticky; bottom:0; background:var(--ink); color:var(--paper); margin:28px -36px -32px;
+    padding:16px 36px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+  }
+  .cart-bar .cart-info{ font-size:0.88rem; }
+  .cart-bar .cart-info b{ color:#E8C49A; font-family:'Courier New', monospace; }
+  .cart-bar button.btn{ background:var(--rust); border-color:var(--rust); }
+  .cart-bar button.btn:hover{ background:#C25E27; }
+  .cart-bar button.btn:disabled{ background:#5a564c; border-color:#5a564c; color:#928d7e; }
+
+  .kv{ display:grid; grid-template-columns:170px 1fr; gap:8px 16px; padding:14px 16px; font-size:0.88rem; }
+  .kv dt{ color:var(--ink-soft); font-size:0.76rem; text-transform:uppercase; letter-spacing:0.04em; }
+  .kv dd{ margin:0; font-family:'Courier New', monospace; word-break:break-word; }
+  .kv dd.empty{ color:#BBB3A0; font-style:italic; }
+  .summary-block{ border:1px solid var(--paper-line); margin-bottom:18px; }
+  .summary-block .sb-head{
+    background:var(--green-pale); color:var(--green); padding:9px 16px; font-size:0.76rem;
+    letter-spacing:0.06em; text-transform:uppercase; font-weight:700; display:flex; justify-content:space-between;
+  }
+  .summary-block .sb-head a{ color:var(--rust); font-size:0.7rem; text-decoration:none; text-transform:none; letter-spacing:0; cursor:pointer; }
+
+  .empty-state{ text-align:center; color:var(--ink-soft); padding:50px 20px; }
+  .empty-state .big{ font-size:2rem; margin-bottom:10px; }
+
+  .toast{
+    position:fixed; top:18px; right:18px; background:var(--ink); color:var(--paper); padding:13px 18px;
+    font-size:0.83rem; border-left:4px solid var(--rust); box-shadow:0 4px 16px rgba(0,0,0,0.2); z-index:999;
+    transform:translateX(120%); transition:transform .25s ease; max-width:320px;
+  }
+  .toast.show{ transform:translateX(0); }
+
+  .filter-bar{ display:flex; gap:14px; margin-bottom:18px; flex-wrap:wrap; align-items:flex-end; }
+  .filter-bar .field{ min-width:160px; }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(43,38,32,0.55); display:flex; align-items:flex-start;
+    justify-content:center; padding:40px 20px; overflow-y:auto; z-index:200;
+  }
+  .modal-box{ background:var(--paper); max-width:760px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,0.3); }
+  .modal-box .modal-close{
+    position:sticky; top:0; display:flex; justify-content:flex-end; background:var(--ink); padding:10px 16px; z-index:5;
+  }
+  .modal-box .modal-close button{
+    background:transparent; border:1px solid #8a8472; color:#fff; font-family:'Courier New',monospace;
+    padding:6px 12px; cursor:pointer; font-size:0.75rem;
+  }
+
+  /* ===== PO Document ===== */
+  .po-doc{ background:#fff; padding:40px; color:#1a1a1a; font-family:'Times New Roman', Georgia, serif; }
+  .po-doc .po-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px double #1a1a1a; padding-bottom:16px; margin-bottom:20px; }
+  .po-doc .po-left{ max-width:60%; }
+  .po-doc .po-co{ font-size:1.3rem; font-weight:700; letter-spacing:0.02em; }
+  .po-doc .po-co small{ display:block; font-size:0.7rem; font-weight:400; color:#555; margin-top:4px; }
+  .po-doc .po-supplier-name{
+    font-size:0.92rem; font-weight:700; color:#1a1a1a; margin-top:10px; line-height:1.45;
+    word-wrap:break-word; overflow-wrap:break-word;
+  }
+  .po-doc .po-supplier-name .po-supplier-label{
+    display:block; font-size:0.68rem; font-weight:400; text-transform:uppercase; letter-spacing:0.06em; color:#555; margin-bottom:3px;
+  }
+  .po-doc .po-meta{ text-align:right; font-size:0.82rem; flex-shrink:0; }
+  .po-doc .po-meta .po-title{ font-size:1.1rem; font-weight:700; letter-spacing:0.08em; }
+  .po-doc .po-cols{ display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:22px; }
+  .po-doc .po-block-title{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:#555; border-bottom:1px solid #ccc; padding-bottom:4px; margin-bottom:8px; }
+  .po-doc .po-block p{ margin:2px 0; font-size:0.86rem; }
+  .po-doc table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  .po-doc th{ text-align:left; font-size:0.72rem; text-transform:uppercase; background:#f0ede4; padding:8px 10px; border:1px solid #ccc; }
+  .po-doc td{ padding:8px 10px; border:1px solid #ccc; font-size:0.84rem; }
+  .po-doc td.num, .po-doc th.num{ text-align:right; }
+  .po-doc tfoot td{ font-weight:700; background:#faf8f2; }
+
+  .po-doc .po-summary-cols{ display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:22px; align-items:start; }
+  .po-doc .tax-summary{ border:1px solid #ccc; }
+  .po-doc .tax-row{
+    display:flex; justify-content:space-between; padding:8px 14px; font-size:0.86rem;
+    border-bottom:1px solid #e2ddd0;
+  }
+  .po-doc .tax-row:last-child{ border-bottom:none; }
+  .po-doc .tax-row-final{ background:#f0ede4; font-weight:700; font-size:0.94rem; border-top:2px solid #1a1a1a; }
+
+  .po-doc .po-footer{ margin-top:30px; display:flex; justify-content:space-between; font-size:0.8rem; color:#444; }
+  .po-doc .po-disclaimer{ margin-top:40px; padding-top:14px; border-top:1px solid #ccc; font-size:0.78rem; color:#555; text-align:center; font-style:italic; }
+  .po-actions{ padding:16px 40px; background:#efe9d8; display:flex; justify-content:flex-end; gap:10px; }
+
+  @page{ margin: 12mm; }
+  @media print{
+    html, body{ background:#fff !important; margin:0; padding:0; }
+    body > *{ display:none !important; }
+    #modalRoot{ display:block !important; }
+    .modal-overlay{ display:block !important; position:static !important; inset:auto; padding:0; background:#fff !important; }
+    .modal-overlay .modal-box{ display:block !important; box-shadow:none !important; max-width:none; width:auto; background:#fff !important; }
+    .modal-overlay .modal-close{ display:none !important; }
+    .po-doc{ display:block !important; padding:0 !important; }
+    .po-actions{ display:none !important; }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+  }
+
+  @media (max-width:760px){
+    .grid, .grid.cols-3{ grid-template-columns:1fr; }
+    .catalog-grid{ grid-template-columns:1fr; }
+    .stat-grid{ grid-template-columns:1fr 1fr; }
+    .report-row{ grid-template-columns:1fr; }
+    .panel{ padding:22px 18px; }
+    .cart-bar{ margin:28px -18px -22px; padding:14px 18px; flex-direction:column; align-items:stretch; }
+    .kv{ grid-template-columns:130px 1fr; }
+    header.topbar{ flex-direction:column; gap:10px; align-items:flex-start; }
+    .po-doc{ padding:20px; }
+    .po-doc .po-header{ flex-direction:column; gap:14px; }
+    .po-doc .po-left{ max-width:100%; }
+    .po-doc .po-meta{ text-align:left; }
+    .po-doc .po-cols{ grid-template-columns:1fr; }
+    .po-doc .po-summary-cols{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Order Desk
+    <small>Label Roll Order Management System</small>
+  </div>
+  <div class="mode-switch" id="loggedOutSwitch">
+    <button id="modeCustomerBtn" class="active">Login</button>
+  </div>
+  <div class="session-info" id="loggedInInfo" style="display:none;">
+    <span id="sessionUserLabel"></span>
+    <button class="btn small secondary" id="logoutBtn">Logout</button>
+  </div>
+</header>
+
+<nav class="subnav" id="authNav">
+  <button data-view="auth-register" class="active">New Customer Registration</button>
+  <button data-view="auth-customer-login">Customer Login</button>
+  <button data-view="auth-admin-login">Admin Login</button>
+</nav>
+
+<nav class="subnav" id="customerNav" style="display:none;">
+  <button data-view="cust-catalog" class="active">Browse &amp; Order</button>
+  <button data-view="cust-review">Review Order</button>
+  <button data-view="cust-orders">My Orders<span class="badge" id="myOrdersBadge" style="display:none;"></span></button>
+</nav>
+
+<nav class="subnav" id="adminNav" style="display:none;">
+  <button data-view="admin-dashboard" class="active">Dashboard</button>
+  <button data-view="admin-products">Product Catalog</button>
+  <button data-view="admin-orders">Orders Received<span class="badge" id="adminOrdersBadge" style="display:none;"></span></button>
+  <button data-view="admin-customers">Customers</button>
+</nav>
+
+<main>
+
+  <!-- ================= AUTH: CUSTOMER LOGIN ================= -->
+  <section class="panel view" id="view-auth-customer-login" style="display:none;">
+    <h1 class="panel-title">Customer Login</h1>
+    <p class="panel-sub">Log in with the username and password you received at registration.</p>
+
+    <div class="login-tab-panel">
+      <form id="customerLoginForm" novalidate>
+        <div class="field full">
+          <label for="custLoginUsername">Username <span class="req">*</span></label>
+          <input type="text" id="custLoginUsername" placeholder="e.g. sharma_agro_4821" autocomplete="username">
+        </div>
+        <div class="field full" style="margin-top:14px;">
+          <label for="custLoginPassword">Password <span class="req">*</span></label>
+          <input type="text" id="custLoginPassword" placeholder="Your password" autocomplete="current-password">
+        </div>
+        <div class="errmsg" data-for="custLogin" style="margin-top:8px;"></div>
+        <div class="actions" style="justify-content:flex-start; border-top:none; padding-top:18px;">
+          <button type="submit" class="btn">Log In →</button>
+        </div>
+      </form>
+      <p class="login-hint">New customer? <a href="#" data-jump="auth-register">Register here</a> to create your account and choose your username.</p>
+    </div>
+  </section>
+
+  <!-- ================= AUTH: ADMIN LOGIN ================= -->
+  <section class="panel view" id="view-auth-admin-login" style="display:none;">
+    <h1 class="panel-title">Admin Login</h1>
+    <p class="panel-sub">For authorised staff only.</p>
+
+    <div class="login-tab-panel">
+      <form id="adminLoginForm" novalidate>
+        <div class="field full">
+          <label for="adminLoginUsername">Username <span class="req">*</span></label>
+          <input type="text" id="adminLoginUsername" placeholder="admin" autocomplete="username">
+        </div>
+        <div class="field full" style="margin-top:14px;">
+          <label for="adminLoginPassword">Password <span class="req">*</span></label>
+          <input type="text" id="adminLoginPassword" placeholder="Password" autocomplete="current-password">
+        </div>
+        <div class="errmsg" data-for="adminLogin" style="margin-top:8px;"></div>
+        <div class="actions" style="justify-content:flex-start; border-top:none; padding-top:18px;">
+          <button type="submit" class="btn">Log In →</button>
+        </div>
+      </form>
+      <p class="login-hint utility">Default admin credentials: <strong>admin</strong> / <strong>admin123</strong></p>
+    </div>
+  </section>
+
+  <!-- ================= AUTH: REGISTER ================= -->
+  <section class="panel view" id="view-auth-register">
+    <h1 class="panel-title">New Customer Registration</h1>
+    <p class="panel-sub">Fields marked <span class="req">*</span> are required. Choose your own username below — you can use your email ID or any plain text. You'll log in with this username and the password you set.</p>
+
+    <form id="regForm" novalidate>
+      <div class="grid">
+        <div class="field full">
+          <label for="custName">Customer / Firm Name <span class="req">*</span></label>
+          <input type="text" id="custName" placeholder="e.g. Sharma Agro Traders">
+          <div class="errmsg" data-for="custName"></div>
+        </div>
+
+        <div class="field full">
+          <label for="billingAddress">Billing Address <span class="req">*</span></label>
+          <textarea id="billingAddress" placeholder="Building, Street, City, State, PIN code"></textarea>
+          <div class="errmsg" data-for="billingAddress"></div>
+        </div>
+
+        <div class="field">
+          <label for="billingContactPerson">Billing Contact Person <span class="req">*</span></label>
+          <input type="text" id="billingContactPerson" placeholder="e.g. Rajesh Sharma">
+          <div class="errmsg" data-for="billingContactPerson"></div>
+        </div>
+
+        <div class="field">
+          <label for="billingContactNumber">Billing Contact Number <span class="req">*</span></label>
+          <input type="tel" id="billingContactNumber" maxlength="15" placeholder="9876543210">
+          <div class="errmsg" data-for="billingContactNumber"></div>
+        </div>
+
+        <div class="field full">
+          <label for="shippingAddress">Shipping Address <span class="req">*</span></label>
+          <textarea id="shippingAddress" placeholder="Building, Street, City, State, PIN code"></textarea>
+          <div class="copy-row" style="margin-top:2px;">
+            <input type="checkbox" id="sameAsBilling">
+            <label for="sameAsBilling" style="text-transform:none; letter-spacing:0; font-size:0.8rem;">Same as billing address</label>
+          </div>
+          <div class="errmsg" data-for="shippingAddress"></div>
+        </div>
+
+        <div class="field">
+          <label for="shippingContactPerson">Shipping Contact Person <span class="req">*</span></label>
+          <input type="text" id="shippingContactPerson" placeholder="e.g. Anita Verma">
+          <div class="errmsg" data-for="shippingContactPerson"></div>
+        </div>
+
+        <div class="field">
+          <label for="shippingContactNumber">Shipping Contact Number <span class="req">*</span></label>
+          <input type="tel" id="shippingContactNumber" maxlength="15" placeholder="9876543210">
+          <div class="errmsg" data-for="shippingContactNumber"></div>
+        </div>
+
+        <div class="field">
+          <label for="gst">GST Number <span class="opt">optional</span></label>
+          <input type="text" id="gst" maxlength="15" placeholder="22AAAAA0000A1Z5" style="text-transform:uppercase;">
+          <div class="hint">Format: 15-character GSTIN, if applicable</div>
+          <div class="errmsg" data-for="gst"></div>
+        </div>
+
+        <div class="field">
+          <label for="pan">PAN No. <span class="opt">optional</span></label>
+          <input type="text" id="pan" maxlength="10" placeholder="AAAAA0000A" style="text-transform:uppercase;">
+          <div class="hint">Format: 10-character PAN, if applicable</div>
+          <div class="errmsg" data-for="pan"></div>
+        </div>
+
+        <div class="field">
+          <label for="contact">Contact Number <span class="req">*</span></label>
+          <input type="tel" id="contact" maxlength="15" placeholder="9876543210">
+          <div class="errmsg" data-for="contact"></div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email ID <span class="req">*</span></label>
+          <input type="email" id="email" placeholder="name@company.com">
+          <div class="errmsg" data-for="email"></div>
+        </div>
+
+        <div class="field">
+          <label for="seedReg">Seed Registration No. <span class="opt">optional</span></label>
+          <input type="text" id="seedReg" placeholder="e.g. SR/2024/00123">
+        </div>
+
+        <div class="field">
+          <label for="anyOther">Any Other <span class="opt">optional</span></label>
+          <input type="text" id="anyOther" placeholder="Additional reference / note">
+        </div>
+
+        <div class="field full">
+          <label for="regDocs">Upload Documents <span class="opt">optional</span></label>
+          <input type="file" id="regDocs" multiple accept=".pdf,.jpg,.jpeg,.png,.webp">
+          <div class="hint">e.g. GST certificate, PAN card, Seed Registration certificate. You can select multiple files. PDF or image formats only.</div>
+          <div id="regDocsList" class="doc-list"></div>
+          <div class="errmsg" data-for="regDocs"></div>
+        </div>
+
+        <div class="field full">
+          <label for="regUsername">Choose Username <span class="req">*</span></label>
+          <input type="text" id="regUsername" placeholder="e.g. your email or any plain text" autocomplete="username">
+          <div class="hint">You can use your email ID (e.g. john@example.com) or any plain text (e.g. sharma_agro). This is what you'll type at login. <strong id="regUsernameSuggestion"></strong></div>
+          <div class="errmsg" data-for="regUsername"></div>
+        </div>
+
+        <div class="field">
+          <label for="regPassword">Set Login Password <span class="req">*</span></label>
+          <input type="text" id="regPassword" placeholder="Minimum 6 characters" autocomplete="new-password">
+          <div class="errmsg" data-for="regPassword"></div>
+        </div>
+
+        <div class="field">
+          <label for="regPasswordConfirm">Confirm Password <span class="req">*</span></label>
+          <input type="text" id="regPasswordConfirm" placeholder="Re-enter password" autocomplete="new-password">
+          <div class="errmsg" data-for="regPasswordConfirm"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn secondary" id="clearFormBtn">Clear Form</button>
+        <button type="submit" class="btn" id="registerBtn">Register &amp; Get Login Details →</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ================= AUTH: REGISTRATION SUCCESS ================= -->
+  <section class="panel view" id="view-auth-success" style="display:none;">
+    <div class="stamp-wrap"><div class="stamp">Registered</div></div>
+    <h1 class="panel-title" style="text-align:center;">Your Account Is Ready</h1>
+    <p class="panel-sub" style="text-align:center;">Registration complete. Note your login details below — the password is only shown this once.</p>
+
+    <div class="summary-block" style="max-width:420px; margin:0 auto 20px;">
+      <div class="sb-head"><span>Login Credentials</span></div>
+      <dl class="kv">
+        <dt>Customer ID</dt><dd id="successCustomerId" class="utility"></dd>
+        <dt>Username</dt><dd id="successUsername" class="utility"></dd>
+        <dt>Password</dt><dd id="successPassword" class="utility"></dd>
+      </dl>
+    </div>
+
+    <div class="actions" style="justify-content:center; border-top:none;">
+      <button class="btn" id="goToLoginBtn">Go to Login →</button>
+    </div>
+  </section>
+
+  <!-- ================= CUSTOMER: CATALOG ================= -->
+  <section class="panel view" id="view-cust-catalog" style="display:none;">
+    <h1 class="panel-title">Browse &amp; Order Items</h1>
+    <p class="panel-sub">Registered as <strong id="catalogCustName">—</strong>. Choose quantities for the rolls you wish to order.</p>
+    <div class="catalog-grid" id="catalogGrid"></div>
+    <div class="cart-bar">
+      <div class="cart-info">Items selected: <b id="cartCount">0</b> rolls &nbsp;|&nbsp; Total Quantity: <b id="cartTotalLabels">0</b> labels &nbsp;|&nbsp; Estimated total: <b id="cartTotal">₹0.00</b><span id="cartSupplierNote"></span></div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn secondary" id="clearCartBtn">Clear Cart</button>
+        <button class="btn" id="toReviewBtn" disabled>Review Order →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CUSTOMER: REVIEW ================= -->
+  <section class="panel view" id="view-cust-review" style="display:none;">
+    <h1 class="panel-title">Review Order</h1>
+    <p class="panel-sub">Please verify customer details and order items before placing the order.</p>
+
+    <div class="summary-block">
+      <div class="sb-head"><span>Customer Details</span><span class="locked-note">Contact admin to update these details</span></div>
+      <dl class="kv" id="reviewCustomer"></dl>
+    </div>
+
+    <div class="summary-block">
+      <div class="sb-head"><span>Order Items</span><a data-jump="cust-catalog">Edit</a></div>
+      <table class="data-table">
+        <thead><tr><th>Item</th><th class="num">HSN Code</th><th class="num">Labels/Roll</th><th class="num">Qty (Rolls)</th><th class="num">Total Labels</th><th class="num">Unit Price</th><th class="num">Subtotal</th></tr></thead>
+        <tbody id="reviewItems"></tbody>
+        <tfoot><tr><td colspan="4">Grand Total</td><td class="num" id="reviewTotalLabels"></td><td></td><td class="num" id="reviewTotal">₹0.00</td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="backToCatalogBtn">← Back to Items</button>
+      <button class="btn" id="placeOrderBtn">Place Order ✓</button>
+    </div>
+  </section>
+
+  <!-- ================= CUSTOMER: MY ORDERS ================= -->
+  <section class="panel view" id="view-cust-orders" style="display:none;">
+    <h1 class="panel-title">My Orders</h1>
+    <p class="panel-sub">Orders placed under <strong id="myOrdersCustName">—</strong>.</p>
+    <div id="myOrdersList"></div>
+  </section>
+
+  <!-- ================= ADMIN: DASHBOARD ================= -->
+  <section class="panel view" id="view-admin-dashboard" style="display:none;">
+    <h1 class="panel-title">Dashboard</h1>
+    <p class="panel-sub">Snapshot of registrations, orders and revenue.</p>
+    <div class="stat-grid" id="dashStats"></div>
+
+    <h2 class="section-title" style="margin-top:30px;">Orders by Status</h2>
+    <div class="stat-grid" id="dashStatusStats"></div>
+
+    <h2 class="section-title" style="margin-top:30px;">Download Reports</h2>
+    <p class="panel-sub" style="margin-bottom:18px;">Select a date range, then download the report as a print-ready PDF.</p>
+
+    <div class="report-row">
+      <div class="report-card">
+        <h3>Customer Registrations</h3>
+        <p class="report-desc">All customers registered within the selected date range.</p>
+        <div class="report-dates">
+          <div class="field"><label for="repRegFrom">From</label><input type="date" id="repRegFrom"></div>
+          <div class="field"><label for="repRegTo">To</label><input type="date" id="repRegTo"></div>
+        </div>
+        <button class="btn small" id="downloadRegReportBtn">⬇ Download PDF</button>
+      </div>
+
+      <div class="report-card">
+        <h3>Quantity Received</h3>
+        <p class="report-desc">Total quantity ordered per product, for orders placed within the selected range.</p>
+        <div class="report-dates">
+          <div class="field"><label for="repQtyFrom">From</label><input type="date" id="repQtyFrom"></div>
+          <div class="field"><label for="repQtyTo">To</label><input type="date" id="repQtyTo"></div>
+        </div>
+        <button class="btn small" id="downloadQtyReportBtn">⬇ Download PDF</button>
+      </div>
+
+      <div class="report-card">
+        <h3>Orders by Status</h3>
+        <p class="report-desc">All orders within the selected range, grouped by current status.</p>
+        <div class="report-dates">
+          <div class="field"><label for="repStatusFrom">From</label><input type="date" id="repStatusFrom"></div>
+          <div class="field"><label for="repStatusTo">To</label><input type="date" id="repStatusTo"></div>
+        </div>
+        <button class="btn small" id="downloadStatusReportBtn">⬇ Download PDF</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= ADMIN: PRODUCTS ================= -->
+  <section class="panel view" id="view-admin-products" style="display:none;">
+    <h1 class="panel-title">Product Catalog Management</h1>
+    <p class="panel-sub">Upload and manage label roll products. Fields marked <span class="req">*</span> are required.</p>
+
+    <form id="productForm" novalidate>
+      <div class="grid cols-3">
+        <div class="field full">
+          <label for="prodName">Product Name <span class="req">*</span></label>
+          <input type="text" id="prodName" placeholder="e.g. Thermal Label Roll 50x25mm">
+          <div class="errmsg" data-for="prodName"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodSupplier">Supplier Name <span class="req">*</span></label>
+          <input type="text" id="prodSupplier" placeholder="e.g. Vishal Label Industries">
+          <div class="hint">Appears on the top right of the Purchase Order for this product.</div>
+          <div class="errmsg" data-for="prodSupplier"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodSupplierCode">Supplier Code <span class="opt">auto-generated</span></label>
+          <input type="text" id="prodSupplierCode" placeholder="Generated from supplier name" readonly style="background:#F0ECE2; cursor:not-allowed;">
+          <div class="hint">Products sharing this code can be combined in one order.</div>
+        </div>
+
+        <div class="field">
+          <label for="prodPrice">Price (₹) <span class="req">*</span></label>
+          <input type="number" id="prodPrice" min="0" step="0.01" placeholder="450.00">
+          <div class="errmsg" data-for="prodPrice"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodHsnCode">HSN Code <span class="req">*</span></label>
+          <input type="text" id="prodHsnCode" placeholder="e.g. 48211020" maxlength="8">
+          <div class="hint">4 to 8 digit HSN/SAC code for GST classification.</div>
+          <div class="errmsg" data-for="prodHsnCode"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodLabelsPerRoll">No. of Labels per Roll <span class="req">*</span></label>
+          <input type="number" id="prodLabelsPerRoll" min="1" step="1" placeholder="1000">
+          <div class="errmsg" data-for="prodLabelsPerRoll"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodStock">Stock on Hand (rolls) <span class="opt">optional</span></label>
+          <input type="number" id="prodStock" min="0" step="1" placeholder="500">
+        </div>
+
+        <div class="field">
+          <label for="prodLowStockThreshold">Low Stock Alert Below <span class="opt">optional</span></label>
+          <input type="number" id="prodLowStockThreshold" min="0" step="1" placeholder="50">
+        </div>
+
+        <div class="field full">
+          <label for="prodDesc">Description <span class="opt">optional</span></label>
+          <textarea id="prodDesc" placeholder="Material, adhesive type, use-case notes..."></textarea>
+        </div>
+      </div>
+
+      <h2 class="section-title" style="margin-top:26px;">Tax &amp; Payment</h2>
+      <p class="panel-sub" style="margin-bottom:18px;">These appear on the Purchase Order for orders containing this product.</p>
+      <div class="grid cols-3">
+        <div class="field">
+          <label for="prodGstRate">GST Rate (%) <span class="req">*</span></label>
+          <input type="number" id="prodGstRate" min="0" max="28" step="0.01" placeholder="18">
+          <div class="errmsg" data-for="prodGstRate"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodTaxType">Tax Type <span class="req">*</span></label>
+          <select id="prodTaxType">
+            <option value="">— Select —</option>
+            <option value="intra">Intra-state (CGST + SGST)</option>
+            <option value="inter">Inter-state (IGST)</option>
+          </select>
+          <div class="hint">Intra-state splits the rate into CGST + SGST; Inter-state applies the full rate as IGST.</div>
+          <div class="errmsg" data-for="prodTaxType"></div>
+        </div>
+
+        <div class="field">
+          <label for="prodPaymentTerms">Payment Terms <span class="req">*</span></label>
+          <input type="text" id="prodPaymentTerms" placeholder="e.g. 50% advance, balance before dispatch">
+          <div class="errmsg" data-for="prodPaymentTerms"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn secondary" id="clearProductFormBtn">Clear</button>
+        <button type="submit" class="btn" id="saveProductBtn">Add Product to Catalog +</button>
+      </div>
+    </form>
+
+    <h2 class="section-title" style="margin-top:32px;">Existing Products (<span id="productCount">0</span>)</h2>
+    <div id="adminProductTableWrap"></div>
+  </section>
+
+  <!-- ================= ADMIN: ORDERS ================= -->
+  <section class="panel view" id="view-admin-orders" style="display:none;">
+    <h1 class="panel-title">Customer Orders Received</h1>
+    <p class="panel-sub">All purchase orders placed by registered customers.</p>
+
+    <div class="filter-bar">
+      <div class="field">
+        <label for="orderFilterStatus">Filter by Status</label>
+        <select id="orderFilterStatus">
+          <option value="">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Dispatched">Dispatched</option>
+          <option value="Delivered">Delivered</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="field" style="min-width:240px;">
+        <label for="orderFilterSearch">Search Customer / Order ID</label>
+        <input type="search" id="orderFilterSearch" placeholder="Type to filter...">
+      </div>
+    </div>
+
+    <div id="adminOrdersTableWrap"></div>
+  </section>
+
+  <!-- ================= ADMIN: CUSTOMERS ================= -->
+  <section class="panel view" id="view-admin-customers" style="display:none;">
+    <h1 class="panel-title">Registered Customers</h1>
+    <p class="panel-sub">All customers registered in the system.</p>
+    <div id="adminCustomersTableWrap"></div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+<div id="modalRoot"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  var state = {
+    auth: { role:null, customerId:null },  // role: null | 'customer' | 'admin'
+    adminAccount: { username:"admin", password:"admin123" },
+    customers: [],                // {id, name, billingAddress, shippingAddress, gst, pan, contact, email, seedRegNo, anyOther, registeredAt, username, password}
+    products: [],                 // {id, name, price, hsnCode, labelsPerRoll, stock, lowStockThreshold, desc}
+    orders: [],                   // {id, customerId, items:[{productId,name,hsnCode,labelsPerRoll,price,qty,subtotal}], total, status, placedAt, statusHistory:[]}
+    activeCustomerId: null,
+    cart: {}                      // productId -> qty (for current customer session)
+  };
+
+  var STATUS_LIST = ["Pending","Approved","Dispatched","Delivered","Cancelled"];
+
+  // Seed a few demo products so the catalog isn't empty on first load
+  function seedDemoProducts(){
+    state.products = [];
+    state.products.push(mkProduct("Thermal Label Roll 50x25mm", "Vishal Label Industries", 380, "48211020", 1000, 600, 50, "Direct thermal, permanent adhesive. Suitable for barcode printers.", 18, "intra", "50% advance, balance before dispatch"));
+    state.products.push(mkProduct("Thermal Label Roll 75x50mm", "Vishal Label Industries", 520, "48211020", 700, 400, 50, "Direct thermal, removable adhesive.", 18, "intra", "50% advance, balance before dispatch"));
+    state.products.push(mkProduct("Barcode Label Roll 100x75mm", "Shree Packaging Solutions", 690, "48211090", 500, 180, 40, "Wide format barcode label, permanent adhesive.", 12, "inter", "100% advance with order"));
+    state.products.push(mkProduct("Jewellery Tag Roll 30x20mm", "Shree Packaging Solutions", 310, "48211090", 1500, 25, 30, "Small format tag roll for jewellery tagging.", 12, "inter", "100% advance with order"));
+  }
+  function mkProduct(name, supplierName, price, hsnCode, labelsPerRoll, stock, lowStockThreshold, desc, gstRate, taxType, paymentTerms){
+    return {
+      id: "PRD-" + Math.random().toString(36).slice(2,8).toUpperCase(),
+      name:name, supplierName:supplierName, supplierCode: genSupplierCode(supplierName),
+      price:price, hsnCode:hsnCode, labelsPerRoll:labelsPerRoll,
+      stock: (stock==null?0:stock), lowStockThreshold:(lowStockThreshold==null?20:lowStockThreshold),
+      desc: desc||"", gstRate:(gstRate==null?18:gstRate), taxType:(taxType||"intra"), paymentTerms:(paymentTerms||""),
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  // Generates a unique code for a supplier, derived from the supplier's name.
+  // If a product with this exact supplier name already exists, reuses its code
+  // so every product from the same supplier shares one code.
+  function genSupplierCode(supplierName, excludeProductId){
+    var existing = state.products.filter(function(p){
+      return p.id !== excludeProductId && p.supplierName.trim().toLowerCase() === supplierName.trim().toLowerCase();
+    })[0];
+    if(existing) return existing.supplierCode;
+
+    var initials = supplierName.trim().toUpperCase().split(/\s+/).map(function(w){ return w.charAt(0); }).join("").replace(/[^A-Z]/g, "");
+    if(!initials) initials = "SUP";
+    initials = initials.slice(0, 4);
+
+    var n = 1;
+    var candidate = initials + "-" + String(n).padStart(3, "0");
+    while(state.products.some(function(p){ return p.id !== excludeProductId && p.supplierCode === candidate; })){
+      n++;
+      candidate = initials + "-" + String(n).padStart(3, "0");
+    }
+    return candidate;
+  }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+  function $(sel, root){ return (root||document).querySelector(sel); }
+  function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function fmtMoney(n){ return "₹" + Number(n||0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,"); }
+  function fmtDate(iso){ if(!iso) return "—"; var d = new Date(iso); return d.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) + " " + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }
+  function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function uid(prefix){ return prefix + "-" + Date.now().toString(36).toUpperCase() + "-" + Math.floor(Math.random()*900+100); }
+
+  // Simple numeric Customer ID shown in Admin for reference (max 6 digits, e.g. "482917").
+  // Distinct from the internal record id (used for cross-references) and from the login username.
+  function genCustomerNumericId(){
+    var candidate;
+    do {
+      candidate = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits, 100000-999999
+    } while(state.customers.some(function(c){ return c.customerNumericId === candidate; }));
+    return candidate;
+  }
+
+  // Simple numeric PO Number (max 7 digits, e.g. "4827193"), used as the order's user-facing id.
+  function genPoNumber(){
+    var candidate;
+    do {
+      candidate = String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits, 1000000-9999999
+    } while(state.orders.some(function(o){ return o.id === candidate; }));
+    return candidate;
+  }
+
+  function fmtFileSize(bytes){
+    if(bytes < 1024) return bytes + " B";
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + " KB";
+    return (bytes/(1024*1024)).toFixed(1) + " MB";
+  }
+
+  function showToast(msg){
+    var t = $("#toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  }
+
+  function getCustomer(id){ return state.customers.filter(function(c){ return c.id===id; })[0] || null; }
+  function getProduct(id){ return state.products.filter(function(p){ return p.id===id; })[0] || null; }
+
+  // An order can only be edited or cancelled by the customer while it is still Pending.
+  // Once an admin moves it to Approved (or beyond), it is locked on the customer side.
+  function isOrderEditable(order){
+    return order.status === "Pending";
+  }
+
+  function restoreStockForOrder(order){
+    order.items.forEach(function(it){
+      var p = getProduct(it.productId);
+      if(p) p.stock += it.qty;
+    });
+  }
+
+  // ============================================================
+  // VIEW SWITCHING
+  // ============================================================
+  function showAuthScreen(view){
+    // view: 'register' | 'customer-login' | 'admin-login' | 'success'
+    state.auth = { role:null, customerId:null };
+    $("#loggedOutSwitch").style.display = "";
+    $("#loggedInInfo").style.display = "none";
+    $("#authNav").style.display = "";
+    $("#customerNav").style.display = "none";
+    $("#adminNav").style.display = "none";
+
+    $all(".view").forEach(function(v){ v.style.display = "none"; });
+    var target = $("#view-auth-" + view);
+    if(target) target.style.display = "";
+    $all("#authNav button").forEach(function(b){ b.classList.toggle("active", b.dataset.view === "auth-" + view); });
+    $("#modeCustomerBtn").classList.add("active");
+
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  function loginAsCustomer(customer){
+    state.auth = { role:"customer", customerId: customer.id };
+    state.activeCustomerId = customer.id;
+    state.cart = {};
+    $("#loggedOutSwitch").style.display = "none";
+    $("#loggedInInfo").style.display = "";
+    $("#sessionUserLabel").textContent = "Customer: " + customer.name;
+    $("#authNav").style.display = "none";
+    $("#adminNav").style.display = "none";
+    $("#catalogCustName").textContent = customer.name;
+    $("#myOrdersCustName").textContent = customer.name;
+    showView("cust-catalog", "customer");
+  }
+
+  function loginAsAdmin(){
+    state.auth = { role:"admin", customerId:null };
+    $("#loggedOutSwitch").style.display = "none";
+    $("#loggedInInfo").style.display = "";
+    $("#sessionUserLabel").textContent = "Admin";
+    $("#authNav").style.display = "none";
+    $("#customerNav").style.display = "none";
+    showView("admin-dashboard", "admin");
+  }
+
+  function logout(){
+    var wasAdmin = state.auth.role === "admin";
+    state.auth = { role:null, customerId:null };
+    state.activeCustomerId = null;
+    state.cart = {};
+    showAuthScreen(wasAdmin ? "admin-login" : "customer-login");
+    showToast("Logged out.");
+  }
+  $("#logoutBtn").addEventListener("click", logout);
+
+  function showView(view, mode){
+    var nav = mode==="admin" ? "#adminNav" : "#customerNav";
+    $("#customerNav").style.display = mode==="customer" ? "" : "none";
+    $("#adminNav").style.display = mode==="admin" ? "" : "none";
+
+    $all(".view").forEach(function(v){ v.style.display = "none"; });
+    var target = $("#view-" + view);
+    if(target) target.style.display = "";
+    $all(nav + " button").forEach(function(b){ b.classList.toggle("active", b.dataset.view===view); });
+
+    if(view==="cust-catalog") renderCatalog();
+    if(view==="cust-review") renderReview();
+    if(view==="cust-orders") renderMyOrders();
+    if(view==="admin-dashboard") renderDashboard();
+    if(view==="admin-products") renderAdminProducts();
+    if(view==="admin-orders") renderAdminOrders();
+    if(view==="admin-customers") renderAdminCustomers();
+
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  $("#modeCustomerBtn").addEventListener("click", function(){ showAuthScreen("register"); });
+  $all("#authNav button").forEach(function(b){
+    b.addEventListener("click", function(){ showAuthScreen(this.dataset.view.replace("auth-","")); });
+  });
+  $all("#customerNav button").forEach(function(b){
+    b.addEventListener("click", function(){
+      if(state.auth.role !== "customer"){ showAuthScreen("customer-login"); return; }
+      showView(this.dataset.view, "customer");
+    });
+  });
+  $all("#adminNav button").forEach(function(b){
+    b.addEventListener("click", function(){
+      if(state.auth.role !== "admin"){ showAuthScreen("admin-login"); return; }
+      showView(this.dataset.view, "admin");
+    });
+  });
+  $all('a[data-jump]').forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var dest = this.dataset.jump;
+      if(dest === "auth-register") showAuthScreen("register");
+      else if(state.auth.role === "customer") showView(dest, "customer");
+    });
+  });
+
+  // ============================================================
+  // AUTH: LOGIN HANDLERS
+  // ============================================================
+  function genUsername(name, gst){
+    var base = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    if(!base) base = "customer";
+    var suffix = (gst || "").slice(-4) || Math.floor(1000 + Math.random()*9000);
+    var candidate = base + "_" + suffix;
+    var n = 1;
+    while(state.customers.some(function(c){ return c.username === candidate; })){
+      n++;
+      candidate = base + "_" + suffix + n;
+    }
+    return candidate;
+  }
+
+  $("#customerLoginForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var username = $("#custLoginUsername").value.trim().toLowerCase();
+    var password = $("#custLoginPassword").value;
+    var errEl = $('.errmsg[data-for="custLogin"]');
+    var customer = state.customers.filter(function(c){ return c.username === username; })[0];
+    if(!customer || customer.password !== password){
+      errEl.textContent = "Invalid username or password.";
+      return;
+    }
+    errEl.textContent = "";
+    $("#customerLoginForm").reset();
+    loginAsCustomer(customer);
+    showToast("Welcome back, " + customer.name + ".");
+  });
+
+  $("#adminLoginForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var username = $("#adminLoginUsername").value.trim();
+    var password = $("#adminLoginPassword").value;
+    var errEl = $('.errmsg[data-for="adminLogin"]');
+    if(username !== state.adminAccount.username || password !== state.adminAccount.password){
+      errEl.textContent = "Invalid admin username or password.";
+      return;
+    }
+    errEl.textContent = "";
+    $("#adminLoginForm").reset();
+    loginAsAdmin();
+    showToast("Welcome back, Admin.");
+  });
+
+  $("#goToLoginBtn").addEventListener("click", function(){ showAuthScreen("customer-login"); });
+
+  // ============================================================
+  // MODULE 1: CUSTOMER REGISTRATION
+  // ============================================================
+  var custValidators = {
+    custName: function(v){ return v.trim() ? "" : "Customer name is required."; },
+    billingAddress: function(v){ return v.trim() ? "" : "Billing address is required."; },
+    billingContactPerson: function(v){ return v.trim() ? "" : "Billing contact person is required."; },
+    billingContactNumber: function(v){
+      v = v.trim();
+      if(!v) return "Billing contact number is required.";
+      var digits = v.replace(/\D/g,"");
+      if(digits.length < 10 || digits.length > 13) return "Enter a valid contact number.";
+      return "";
+    },
+    shippingAddress: function(v){ return v.trim() ? "" : "Shipping address is required."; },
+    shippingContactPerson: function(v){ return v.trim() ? "" : "Shipping contact person is required."; },
+    shippingContactNumber: function(v){
+      v = v.trim();
+      if(!v) return "Shipping contact number is required.";
+      var digits = v.replace(/\D/g,"");
+      if(digits.length < 10 || digits.length > 13) return "Enter a valid contact number.";
+      return "";
+    },
+    gst: function(v){
+      v = v.trim().toUpperCase();
+      if(!v) return ""; // optional field
+      if(!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v)) return "Enter a valid 15-character GSTIN, or leave blank.";
+      if(state.customers.some(function(c){ return c.gst && c.gst === v; })) return "A customer with this GSTIN is already registered. Please log in instead.";
+      return "";
+    },
+    pan: function(v){
+      v = v.trim().toUpperCase();
+      if(!v) return ""; // optional field
+      if(!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v)) return "Enter a valid 10-character PAN, or leave blank.";
+      return "";
+    },
+    contact: function(v){
+      v = v.trim();
+      if(!v) return "Contact number is required.";
+      var digits = v.replace(/\D/g,"");
+      if(digits.length < 10 || digits.length > 13) return "Enter a valid contact number.";
+      return "";
+    },
+    email: function(v){
+      v = v.trim();
+      if(!v) return "Email ID is required.";
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Enter a valid email address.";
+      return "";
+    },
+    regUsername: function(v){
+      v = v.trim();
+      if(!v) return "Please choose a username.";
+      if(v.length < 3) return "Username must be at least 3 characters.";
+      if(/\s/.test(v)) return "Username cannot contain spaces.";
+      if(state.customers.some(function(c){ return c.username === v.toLowerCase(); }))
+        return "This username is already taken. Please choose a different one.";
+      return "";
+    },
+    regPassword: function(v){
+      if(!v) return "Please set a password.";
+      if(v.length < 6) return "Password must be at least 6 characters.";
+      return "";
+    },
+    regPasswordConfirm: function(v){
+      var pw = $("#regPassword").value;
+      if(!v) return "Please confirm your password.";
+      if(v !== pw) return "Passwords do not match.";
+      return "";
+    }
+  };
+
+  function validateCustField(name){
+    var el = $("#" + name);
+    var fn = custValidators[name];
+    if(!fn) return true;
+    var msg = fn(el.value);
+    var errEl = $('.errmsg[data-for="' + name + '"]');
+    if(msg){ el.classList.add("invalid"); if(errEl) errEl.textContent = msg; return false; }
+    el.classList.remove("invalid"); if(errEl) errEl.textContent = ""; return true;
+  }
+  function validateCustAll(){
+    var ok = true;
+    Object.keys(custValidators).forEach(function(f){ if(!validateCustField(f)) ok = false; });
+    return ok;
+  }
+
+  ["gst","pan"].forEach(function(id){
+    $("#" + id).addEventListener("input", function(){ this.value = this.value.toUpperCase(); });
+  });
+  Object.keys(custValidators).forEach(function(name){
+    var el = $("#" + name);
+    if(el) el.addEventListener("blur", function(){ validateCustField(name); });
+  });
+
+  // Live username availability feedback as the customer types
+  $("#regUsername").addEventListener("input", function(){
+    var v = this.value.trim();
+    var errEl = $('.errmsg[data-for="regUsername"]');
+    var suggEl = $("#regUsernameSuggestion");
+    if(!v){ errEl.textContent = ""; suggEl.textContent = ""; return; }
+    if(v.length < 3){ errEl.textContent = ""; suggEl.textContent = ""; return; }
+    if(/\s/.test(v)){ errEl.textContent = "Username cannot contain spaces."; this.classList.add("invalid"); suggEl.textContent = ""; return; }
+    var taken = state.customers.some(function(c){ return c.username === v.toLowerCase(); });
+    if(taken){
+      errEl.textContent = "This username is already taken.";
+      this.classList.add("invalid");
+      suggEl.innerHTML = "";
+    } else {
+      errEl.textContent = "";
+      this.classList.remove("invalid");
+      suggEl.innerHTML = '<span style="color:var(--green); font-weight:700;">✓ Available</span>';
+    }
+  });
+
+  // When customer name is filled and username is still empty, show what the auto-gen would be
+  $("#custName").addEventListener("input", function(){
+    var unField = $("#regUsername");
+    var suggEl = $("#regUsernameSuggestion");
+    if(!unField.value.trim() && this.value.trim()){
+      var gst = ($("#gst").value || "").trim();
+      var suggested = genUsername(this.value.trim(), gst);
+      suggEl.innerHTML = 'Suggestion: <span style="font-family:\'Courier New\',monospace;">' + escapeHtml(suggested) + '</span>';
+    }
+  });
+
+  $("#sameAsBilling").addEventListener("change", function(){
+    var ship = $("#shippingAddress");
+    var shipPerson = $("#shippingContactPerson");
+    var shipNumber = $("#shippingContactNumber");
+    if(this.checked){
+      ship.value = $("#billingAddress").value;
+      shipPerson.value = $("#billingContactPerson").value;
+      shipNumber.value = $("#billingContactNumber").value;
+      [ship, shipPerson, shipNumber].forEach(function(el){ el.disabled = true; el.style.opacity = "0.6"; });
+    } else {
+      [ship, shipPerson, shipNumber].forEach(function(el){ el.disabled = false; el.style.opacity = "1"; });
+    }
+  });
+  function syncShippingFromBilling(){
+    if(!$("#sameAsBilling").checked) return;
+    $("#shippingAddress").value = $("#billingAddress").value;
+    $("#shippingContactPerson").value = $("#billingContactPerson").value;
+    $("#shippingContactNumber").value = $("#billingContactNumber").value;
+  }
+  $("#billingAddress").addEventListener("input", syncShippingFromBilling);
+  $("#billingContactPerson").addEventListener("input", syncShippingFromBilling);
+  $("#billingContactNumber").addEventListener("input", syncShippingFromBilling);
+
+  // ---- Document upload staging (registration) ----
+  var pendingRegDocs = []; // {id, fileName, mimeType, size, dataUrl}
+  var MAX_DOC_SIZE = 5 * 1024 * 1024; // 5MB per file, kept modest for in-memory storage
+
+  function renderRegDocsList(){
+    var wrap = $("#regDocsList");
+    if(pendingRegDocs.length === 0){ wrap.innerHTML = ""; return; }
+    wrap.innerHTML = pendingRegDocs.map(function(d){
+      return '<div class="doc-item"><span class="doc-name">📄 ' + escapeHtml(d.fileName) + '</span>' +
+        '<span class="doc-size">' + fmtFileSize(d.size) + '</span>' +
+        '<button type="button" data-remove-doc="' + d.id + '">Remove</button></div>';
+    }).join("");
+    $all("[data-remove-doc]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        pendingRegDocs = pendingRegDocs.filter(function(d){ return d.id !== btn.dataset.removeDoc; });
+        renderRegDocsList();
+      });
+    });
+  }
+
+  $("#regDocs").addEventListener("change", function(){
+    var files = Array.prototype.slice.call(this.files || []);
+    var errEl = $('.errmsg[data-for="regDocs"]');
+    errEl.textContent = "";
+    var oversized = files.filter(function(f){ return f.size > MAX_DOC_SIZE; });
+    if(oversized.length){
+      errEl.textContent = "Skipped (over 5MB): " + oversized.map(function(f){ return f.name; }).join(", ");
+    }
+    var accepted = files.filter(function(f){ return f.size <= MAX_DOC_SIZE; });
+    var readPromises = accepted.map(function(file){
+      return new Promise(function(resolve){
+        var reader = new FileReader();
+        reader.onload = function(){
+          resolve({ id: uid("DOC"), fileName: file.name, mimeType: file.type || "application/octet-stream", size: file.size, dataUrl: reader.result });
+        };
+        reader.onerror = function(){ resolve(null); };
+        reader.readAsDataURL(file);
+      });
+    });
+    Promise.all(readPromises).then(function(results){
+      results.filter(Boolean).forEach(function(d){ pendingRegDocs.push(d); });
+      renderRegDocsList();
+      $("#regDocs").value = ""; // allow re-selecting the same file later
+    });
+  });
+
+  $("#clearFormBtn").addEventListener("click", function(){
+    $("#regForm").reset();
+    $all(".invalid").forEach(function(e){ e.classList.remove("invalid"); });
+    $all(".errmsg").forEach(function(e){ e.textContent = ""; });
+    [$("#shippingAddress"), $("#shippingContactPerson"), $("#shippingContactNumber")].forEach(function(el){ el.disabled = false; el.style.opacity = "1"; });
+    $("#regUsernameSuggestion").textContent = "";
+    pendingRegDocs = [];
+    renderRegDocsList();
+  });
+
+  $("#regForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    if(!validateCustAll()){
+      showToast("Please correct the highlighted fields.");
+      var firstInvalid = $(".invalid");
+      if(firstInvalid) firstInvalid.scrollIntoView({behavior:"smooth", block:"center"});
+      return;
+    }
+
+    var gst = $("#gst").value.trim().toUpperCase();
+    var name = $("#custName").value.trim();
+    var password = $("#regPassword").value;
+    var username = $("#regUsername").value.trim().toLowerCase();
+
+    var custData = {
+      id: uid("CUST"),
+      customerNumericId: genCustomerNumericId(),
+      name: name,
+      billingAddress: $("#billingAddress").value.trim(),
+      billingContactPerson: $("#billingContactPerson").value.trim(),
+      billingContactNumber: $("#billingContactNumber").value.trim(),
+      shippingAddress: $("#shippingAddress").value.trim(),
+      shippingContactPerson: $("#shippingContactPerson").value.trim(),
+      shippingContactNumber: $("#shippingContactNumber").value.trim(),
+      gst: gst,
+      pan: $("#pan").value.trim().toUpperCase(),
+      contact: $("#contact").value.trim(),
+      email: $("#email").value.trim(),
+      seedRegNo: $("#seedReg").value.trim(),
+      anyOther: $("#anyOther").value.trim(),
+      registeredAt: new Date().toISOString(),
+      username: username,
+      password: password,
+      documents: pendingRegDocs.slice()
+    };
+
+    state.customers.push(custData);
+    pendingRegDocs = [];
+    renderRegDocsList();
+
+    $("#successCustomerId").textContent = custData.customerNumericId;
+    $("#successUsername").textContent = username;
+    $("#successPassword").textContent = password;
+
+    $("#regForm").reset();
+    $all(".invalid", $("#regForm")).forEach(function(elx){ elx.classList.remove("invalid"); });
+    $all(".errmsg", $("#regForm")).forEach(function(elx){ elx.textContent = ""; });
+    [$("#shippingAddress"), $("#shippingContactPerson"), $("#shippingContactNumber")].forEach(function(el){ el.disabled = false; el.style.opacity = "1"; });
+    $("#regUsernameSuggestion").textContent = "";
+
+    showAuthScreen("success");
+  });
+
+  // ============================================================
+  // MODULE 2: PRODUCT CATALOG (ADMIN UPLOAD)
+  // ============================================================
+  var prodValidators = {
+    prodName: function(v){ return v.trim() ? "" : "Product name is required."; },
+    prodSupplier: function(v){ return v.trim() ? "" : "Supplier name is required."; },
+    prodPrice: function(v){ return (v!=="" && Number(v) >= 0) ? "" : "Enter a valid price."; },
+    prodHsnCode: function(v){
+      v = v.trim();
+      if(!v) return "HSN code is required.";
+      if(!/^[0-9]{4,8}$/.test(v)) return "Enter a valid HSN code (4 to 8 digits).";
+      return "";
+    },
+    prodLabelsPerRoll: function(v){ return (v!=="" && Number(v) > 0) ? "" : "Enter number of labels per roll."; },
+    prodGstRate: function(v){
+      if(v === "") return "GST rate is required.";
+      var n = Number(v);
+      if(isNaN(n) || n < 0 || n > 28) return "Enter a valid GST rate (0 to 28).";
+      return "";
+    },
+    prodTaxType: function(v){ return v ? "" : "Select a tax type."; },
+    prodPaymentTerms: function(v){ return v.trim() ? "" : "Payment terms are required."; }
+  };
+  function validateProdField(name){
+    var el = $("#" + name);
+    var fn = prodValidators[name];
+    if(!fn) return true;
+    var msg = fn(el.value);
+    var errEl = $('.errmsg[data-for="' + name + '"]');
+    if(msg){ el.classList.add("invalid"); if(errEl) errEl.textContent = msg; return false; }
+    el.classList.remove("invalid"); if(errEl) errEl.textContent = ""; return true;
+  }
+  function validateProdAll(){
+    var ok = true;
+    Object.keys(prodValidators).forEach(function(f){ if(!validateProdField(f)) ok = false; });
+    return ok;
+  }
+  Object.keys(prodValidators).forEach(function(name){
+    var el = $("#" + name);
+    if(el) el.addEventListener("blur", function(){ validateProdField(name); });
+  });
+
+  $("#prodSupplier").addEventListener("input", function(){
+    var name = this.value.trim();
+    var editingId = $("#productForm").dataset.editingId;
+    $("#prodSupplierCode").value = name ? genSupplierCode(name, editingId) : "";
+  });
+
+  $("#clearProductFormBtn").addEventListener("click", function(){
+    $("#productForm").reset();
+    $all(".invalid", $("#productForm")).forEach(function(e){ e.classList.remove("invalid"); });
+    $all(".errmsg", $("#productForm")).forEach(function(e){ e.textContent = ""; });
+    $("#prodSupplierCode").value = "";
+    delete $("#productForm").dataset.editingId;
+    $("#saveProductBtn").textContent = "Add Product to Catalog +";
+  });
+
+  $("#productForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    if(!validateProdAll()){ showToast("Please correct the highlighted fields."); return; }
+
+    var editingId = $("#productForm").dataset.editingId;
+    var supplierName = $("#prodSupplier").value.trim();
+    var data = {
+      name: $("#prodName").value.trim(),
+      supplierName: supplierName,
+      supplierCode: genSupplierCode(supplierName, editingId),
+      price: Number($("#prodPrice").value),
+      hsnCode: $("#prodHsnCode").value.trim(),
+      labelsPerRoll: Number($("#prodLabelsPerRoll").value),
+      stock: $("#prodStock").value === "" ? 0 : Number($("#prodStock").value),
+      lowStockThreshold: $("#prodLowStockThreshold").value === "" ? 20 : Number($("#prodLowStockThreshold").value),
+      desc: $("#prodDesc").value.trim(),
+      gstRate: Number($("#prodGstRate").value),
+      taxType: $("#prodTaxType").value,
+      paymentTerms: $("#prodPaymentTerms").value.trim()
+    };
+
+    if(editingId){
+      var p = getProduct(editingId);
+      if(p) Object.assign(p, data);
+      showToast("Product updated: " + data.name);
+    } else {
+      data.id = uid("PRD");
+      data.createdAt = new Date().toISOString();
+      state.products.push(data);
+      showToast("Product added to catalog: " + data.name);
+    }
+
+    $("#productForm").reset();
+    $("#prodSupplierCode").value = "";
+    delete $("#productForm").dataset.editingId;
+    $("#saveProductBtn").textContent = "Add Product to Catalog +";
+    renderAdminProducts();
+  });
+
+  function renderAdminProducts(){
+    $("#productCount").textContent = state.products.length;
+    var wrap = $("#adminProductTableWrap");
+    if(state.products.length === 0){
+      wrap.innerHTML = '<div class="empty-state"><div class="big">📦</div>No products yet. Add your first product above.</div>';
+      return;
+    }
+    var rows = state.products.map(function(p){
+      var stockClass = p.stock <= 0 ? "stock-out" : (p.stock <= p.lowStockThreshold ? "stock-low" : "stock-ok");
+      var stockLabel = p.stock <= 0 ? "Out of stock" : (p.stock + " rolls");
+      var taxLabel = p.taxType === "inter" ? "IGST" : "CGST+SGST";
+      return '<tr>' +
+        '<td><strong>' + escapeHtml(p.name) + '</strong><br><span class="utility" style="font-size:0.72rem;color:var(--ink-soft);">' + p.id + '</span></td>' +
+        '<td>' + escapeHtml(p.supplierName || "—") + '</td>' +
+        '<td class="utility">' + escapeHtml(p.supplierCode || "—") + '</td>' +
+        '<td>' + escapeHtml(p.hsnCode) + '</td>' +
+        '<td class="num">' + p.labelsPerRoll.toLocaleString() + '</td>' +
+        '<td class="num">' + fmtMoney(p.price) + '</td>' +
+        '<td class="num">' + (p.gstRate!=null ? p.gstRate + '%' : '—') + '<br><span style="font-size:0.7rem;color:var(--ink-soft);">' + taxLabel + '</span></td>' +
+        '<td class="num ' + stockClass + '">' + stockLabel + '</td>' +
+        '<td>' +
+          '<button class="btn small secondary" data-edit-product="' + p.id + '">Edit</button> ' +
+          '<button class="btn small danger" data-delete-product="' + p.id + '">Delete</button>' +
+        '</td>' +
+      '</tr>';
+    }).join("");
+    wrap.innerHTML = '<table class="data-table"><thead><tr>' +
+      '<th>Product</th><th>Supplier</th><th>Code</th><th>HSN Code</th><th class="num">Labels/Roll</th><th class="num">Price</th><th class="num">GST</th><th class="num">Stock</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+
+    $all("[data-edit-product]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var p = getProduct(this.dataset.editProduct);
+        if(!p) return;
+        $("#productForm").dataset.editingId = p.id;
+        $("#prodName").value = p.name;
+        $("#prodSupplier").value = p.supplierName || "";
+        $("#prodSupplierCode").value = p.supplierCode || "";
+        $("#prodPrice").value = p.price;
+        $("#prodHsnCode").value = p.hsnCode;
+        $("#prodLabelsPerRoll").value = p.labelsPerRoll;
+        $("#prodStock").value = p.stock;
+        $("#prodLowStockThreshold").value = p.lowStockThreshold;
+        $("#prodDesc").value = p.desc;
+        $("#prodGstRate").value = p.gstRate;
+        $("#prodTaxType").value = p.taxType || "";
+        $("#prodPaymentTerms").value = p.paymentTerms || "";
+        $("#saveProductBtn").textContent = "Update Product ✓";
+        $("#productForm").scrollIntoView({behavior:"smooth", block:"start"});
+      });
+    });
+    $all("[data-delete-product]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = this.dataset.deleteProduct;
+        var p = getProduct(id);
+        if(!p) return;
+        if(!confirm('Delete product "' + p.name + '"? This cannot be undone.')) return;
+        state.products = state.products.filter(function(x){ return x.id !== id; });
+        renderAdminProducts();
+        showToast("Product deleted.");
+      });
+    });
+  }
+
+  // ============================================================
+  // CUSTOMER: BROWSE & ORDER (uses products from Module 2)
+  // ============================================================
+  function renderCatalog(){
+    var grid = $("#catalogGrid");
+    if(state.products.length === 0){
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="big">📦</div>No products available yet. Please check back soon.</div>';
+      updateCartBar();
+      return;
+    }
+    grid.innerHTML = state.products.map(function(p){
+      var qty = state.cart[p.id] || 0;
+      var outOfStock = p.stock <= 0;
+      var stockClass = outOfStock ? "stock-out" : (p.stock <= p.lowStockThreshold ? "stock-low" : "stock-ok");
+      var stockText = outOfStock ? "Out of stock" : (p.stock + " rolls available");
+      return (
+        '<div class="item-card ' + (outOfStock ? 'disabled' : '') + '" data-id="' + p.id + '">' +
+          '<span class="tag utility">' + p.id + '</span>' +
+          '<h3>' + escapeHtml(p.name) + '</h3>' +
+          '<div class="supplier-tag">Supplier: ' + escapeHtml(p.supplierName || "—") + ' (' + escapeHtml(p.supplierCode || "—") + ')</div>' +
+          (p.desc ? '<p style="font-size:0.8rem;color:var(--ink-soft);margin:0;">' + escapeHtml(p.desc) + '</p>' : '') +
+          '<div class="specs"><span>HSN: ' + escapeHtml(p.hsnCode) + '</span><span>Labels/Roll: ' + p.labelsPerRoll.toLocaleString() + '</span></div>' +
+          '<div class="stock-note ' + stockClass + '">' + stockText + '</div>' +
+          '<div class="price-row">' +
+            '<div class="price">' + fmtMoney(p.price) + '<span>/ roll</span></div>' +
+            '<div class="qty-control">' +
+              '<button type="button" class="qty-dec" ' + (outOfStock?'disabled':'') + ' aria-label="Decrease">−</button>' +
+              '<input type="text" class="qty-input" inputmode="numeric" value="' + qty + '" ' + (outOfStock?'disabled':'') + ' aria-label="Quantity">' +
+              '<button type="button" class="qty-inc" ' + (outOfStock?'disabled':'') + ' aria-label="Increase">+</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="item-total-qty" style="display:' + (qty > 0 ? '' : 'none') + ';">Total Quantity: <strong>' + (qty * p.labelsPerRoll).toLocaleString() + '</strong> labels</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    $all(".item-card", grid).forEach(function(card){
+      var id = card.dataset.id;
+      var product = getProduct(id);
+      var input = $(".qty-input", card), dec = $(".qty-dec", card), inc = $(".qty-inc", card);
+      var totalQtyEl = $(".item-total-qty", card);
+      function setQty(n){
+        n = Math.max(0, Math.min(product.stock, Math.floor(n) || 0));
+        if(n > 0){
+          var cartSupplier = currentCartSupplier();
+          if(cartSupplier && cartSupplier.code !== product.supplierCode){
+            showToast("Your cart already has items from " + cartSupplier.name + " (" + cartSupplier.code + "). Clear the cart before adding items from a different supplier.");
+            input.value = state.cart[id] || 0;
+            return;
+          }
+        }
+        input.value = n;
+        if(n > 0) state.cart[id] = n; else delete state.cart[id];
+        if(totalQtyEl){
+          if(n > 0){
+            totalQtyEl.style.display = "";
+            totalQtyEl.innerHTML = 'Total Quantity: <strong>' + (n * product.labelsPerRoll).toLocaleString() + '</strong> labels';
+          } else {
+            totalQtyEl.style.display = "none";
+          }
+        }
+        updateCartBar();
+      }
+      if(dec) dec.addEventListener("click", function(){ setQty((parseInt(input.value,10)||0) - 1); });
+      if(inc) inc.addEventListener("click", function(){ setQty((parseInt(input.value,10)||0) + 1); });
+      if(input){
+        input.addEventListener("change", function(){ setQty(parseInt(this.value,10)||0); });
+        input.addEventListener("input", function(){ this.value = this.value.replace(/[^\d]/g,""); });
+      }
+    });
+    updateCartBar();
+  }
+
+  function currentCartSupplier(){
+    var ids = Object.keys(state.cart);
+    if(ids.length === 0) return null;
+    var product = getProduct(ids[0]);
+    return product ? { code: product.supplierCode, name: product.supplierName } : null;
+  }
+
+  function cartLines(){
+    return Object.keys(state.cart).map(function(id){
+      var product = getProduct(id);
+      if(!product) return null;
+      var qty = state.cart[id];
+      return { product:product, qty:qty, subtotal: product.price * qty };
+    }).filter(Boolean);
+  }
+  function cartTotal(){ return cartLines().reduce(function(s,l){ return s + l.subtotal; }, 0); }
+
+  function updateCartBar(){
+    var lines = cartLines();
+    var count = lines.reduce(function(s,l){ return s + l.qty; }, 0);
+    var totalLabels = lines.reduce(function(s,l){ return s + (l.qty * l.product.labelsPerRoll); }, 0);
+    $("#cartCount").textContent = count;
+    $("#cartTotalLabels").textContent = totalLabels.toLocaleString();
+    $("#cartTotal").textContent = fmtMoney(cartTotal());
+    $("#toReviewBtn").disabled = lines.length === 0;
+    var supplier = currentCartSupplier();
+    $("#cartSupplierNote").textContent = supplier ? ("  |  Supplier: " + supplier.name + " (" + supplier.code + ")") : "";
+  }
+
+  $("#clearCartBtn").addEventListener("click", function(){
+    if(Object.keys(state.cart).length === 0) return;
+    if(!confirm("Clear all items from your cart?")) return;
+    state.cart = {};
+    renderCatalog();
+    showToast("Cart cleared.");
+  });
+
+  $("#toReviewBtn").addEventListener("click", function(){
+    if(cartLines().length === 0){ showToast("Select at least one item to continue."); return; }
+    showView("cust-review", "customer");
+  });
+  $("#backToCatalogBtn").addEventListener("click", function(){ showView("cust-catalog","customer"); });
+
+  // ============================================================
+  // CUSTOMER: REVIEW
+  // ============================================================
+  function customerKv(targetId, customer){
+    var rows = [
+      ["Customer / Firm Name", customer.name],
+      ["Billing Address", customer.billingAddress],
+      ["Shipping Address", customer.shippingAddress],
+      ["GST Number", customer.gst],
+      ["PAN No.", customer.pan],
+      ["Contact Number", customer.contact],
+      ["Email ID", customer.email],
+      ["Seed Registration No.", customer.seedRegNo],
+      ["Any Other", customer.anyOther]
+    ];
+    $("#" + targetId).innerHTML = rows.map(function(r){
+      var isEmpty = !r[1];
+      return '<dt>' + r[0] + '</dt><dd class="' + (isEmpty?'empty':'') + '">' + (isEmpty ? 'Not provided' : escapeHtml(r[1])) + '</dd>';
+    }).join("");
+  }
+
+  function itemsRows(lines){
+    return lines.map(function(l){
+      var totalLabels = l.qty * l.product.labelsPerRoll;
+      return '<tr><td>' + escapeHtml(l.product.name) + '</td>' +
+        '<td class="num">' + escapeHtml(l.product.hsnCode) + '</td>' +
+        '<td class="num">' + l.product.labelsPerRoll.toLocaleString() + '</td>' +
+        '<td class="num">' + l.qty + '</td>' +
+        '<td class="num"><strong>' + totalLabels.toLocaleString() + '</strong></td>' +
+        '<td class="num">' + fmtMoney(l.product.price) + '</td>' +
+        '<td class="num">' + fmtMoney(l.subtotal) + '</td></tr>';
+    }).join("");
+  }
+
+  function renderReview(){
+    var customer = getCustomer(state.activeCustomerId);
+    if(!customer){ showAuthScreen("customer-login"); return; }
+    customerKv("reviewCustomer", customer);
+    var lines = cartLines();
+    $("#reviewItems").innerHTML = itemsRows(lines);
+    var grandTotalLabels = lines.reduce(function(s,l){ return s + (l.qty * l.product.labelsPerRoll); }, 0);
+    $("#reviewTotalLabels").innerHTML = '<strong>' + grandTotalLabels.toLocaleString() + '</strong>';
+    $("#reviewTotal").textContent = fmtMoney(cartTotal());
+  }
+
+  $("#placeOrderBtn").addEventListener("click", function(){
+    var customer = getCustomer(state.activeCustomerId);
+    var lines = cartLines();
+    if(!customer || lines.length === 0){ showToast("Cannot place an empty order."); return; }
+
+    // decrement stock
+    lines.forEach(function(l){ l.product.stock = Math.max(0, l.product.stock - l.qty); });
+
+    var order = {
+      id: genPoNumber(),
+      customerId: customer.id,
+      items: lines.map(function(l){
+        return { productId:l.product.id, name:l.product.name, supplierName:l.product.supplierName, supplierCode:l.product.supplierCode, hsnCode:l.product.hsnCode, labelsPerRoll:l.product.labelsPerRoll, price:l.product.price, qty:l.qty, subtotal:l.subtotal, gstRate:l.product.gstRate, taxType:l.product.taxType, paymentTerms:l.product.paymentTerms };
+      }),
+      total: cartTotal(),
+      status: "Pending",
+      placedAt: new Date().toISOString(),
+      statusHistory: [{ status:"Pending", at:new Date().toISOString() }]
+    };
+    state.orders.push(order);
+    state.cart = {};
+
+    showToast("Order placed: " + order.id);
+    renderPODocument(order, customer, true);
+  });
+
+  // ============================================================
+  // MODULE 3: PURCHASE ORDER GENERATION (printable doc)
+  // ============================================================
+  function renderPODocument(order, customer, openModal){
+    var rows = order.items.map(function(it){
+      var totalLabels = it.qty * it.labelsPerRoll;
+      return '<tr><td>' + escapeHtml(it.name) + '</td>' +
+        '<td class="num">' + escapeHtml(it.hsnCode) + '</td>' +
+        '<td class="num">' + it.labelsPerRoll.toLocaleString() + '</td>' +
+        '<td class="num">' + it.qty + '</td>' +
+        '<td class="num"><strong>' + totalLabels.toLocaleString() + '</strong></td>' +
+        '<td class="num">' + fmtMoney(it.price) + '</td>' +
+        '<td class="num">' + fmtMoney(it.subtotal) + '</td></tr>';
+    }).join("");
+    var grandTotalLabels = order.items.reduce(function(s,it){ return s + (it.qty * it.labelsPerRoll); }, 0);
+
+    var supplierName = (order.items[0] && order.items[0].supplierName) || "—";
+    var supplierCode = (order.items[0] && order.items[0].supplierCode) || "—";
+
+    // Tax & payment terms are set per-product in the catalog; since an order is always
+    // single-supplier, every item shares the same rate/type/terms — take them from item 0.
+    // Older orders placed before this feature existed won't have these fields, so fall back safely.
+    var firstItem = order.items[0] || {};
+    var gstRate = (firstItem.gstRate != null) ? firstItem.gstRate : null;
+    var taxType = firstItem.taxType || null;
+    var paymentTerms = firstItem.paymentTerms || "";
+    var taxableValue = order.total;
+
+    var taxRowsHtml = "";
+    var grandTotalWithTax = taxableValue;
+    if(gstRate != null && taxType){
+      if(taxType === "inter"){
+        var igst = taxableValue * (gstRate / 100);
+        grandTotalWithTax = taxableValue + igst;
+        taxRowsHtml =
+          '<div class="tax-row"><span>Taxable Value</span><span>' + fmtMoney(taxableValue) + '</span></div>' +
+          '<div class="tax-row"><span>IGST @ ' + gstRate + '%</span><span>' + fmtMoney(igst) + '</span></div>';
+      } else {
+        var halfRate = gstRate / 2;
+        var cgst = taxableValue * (halfRate / 100);
+        var sgst = taxableValue * (halfRate / 100);
+        grandTotalWithTax = taxableValue + cgst + sgst;
+        taxRowsHtml =
+          '<div class="tax-row"><span>Taxable Value</span><span>' + fmtMoney(taxableValue) + '</span></div>' +
+          '<div class="tax-row"><span>CGST @ ' + halfRate + '%</span><span>' + fmtMoney(cgst) + '</span></div>' +
+          '<div class="tax-row"><span>SGST @ ' + halfRate + '%</span><span>' + fmtMoney(sgst) + '</span></div>';
+      }
+    } else {
+      taxRowsHtml = '<div class="tax-row"><span>Taxable Value</span><span>' + fmtMoney(taxableValue) + '</span></div>' +
+        '<div class="tax-row" style="color:#888;"><span>GST</span><span>Not specified on product</span></div>';
+    }
+    taxRowsHtml += '<div class="tax-row tax-row-final"><span>Grand Total (Incl. GST)</span><span>' + fmtMoney(grandTotalWithTax) + '</span></div>';
+
+    var html =
+      '<div class="po-doc" id="poDocRoot">' +
+        '<div class="po-header">' +
+          '<div class="po-left">' +
+            '<div class="po-co">' + escapeHtml(customer.name) + '<small>Purchase Order Issued To Supplier</small></div>' +
+            '<div class="po-supplier-name"><span class="po-supplier-label">Supplier</span>' + escapeHtml(supplierName) + ' (' + escapeHtml(supplierCode) + ')</div>' +
+          '</div>' +
+          '<div class="po-meta"><div class="po-title">PURCHASE ORDER</div>' +
+            'PO No: ' + order.id + '<br>Date: ' + fmtDate(order.placedAt) + '<br>Status: ' + order.status + '</div>' +
+        '</div>' +
+        '<div class="po-cols">' +
+          '<div class="po-block"><div class="po-block-title">Billing Address</div>' +
+            '<p>' + escapeHtml(customer.billingAddress).replace(/\n/g,'<br>') + '</p>' +
+            '<p>GSTIN: ' + (customer.gst ? escapeHtml(customer.gst) : 'Not provided') + ' &nbsp;|&nbsp; PAN: ' + (customer.pan ? escapeHtml(customer.pan) : 'Not provided') + '</p>' +
+            '<p>Contact Person: ' + (customer.billingContactPerson ? escapeHtml(customer.billingContactPerson) : 'Not provided') + ' &nbsp;|&nbsp; ' + (customer.billingContactNumber ? escapeHtml(customer.billingContactNumber) : 'Not provided') + '</p>' +
+            '<p>Email: ' + escapeHtml(customer.email) + '</p>' +
+          '</div>' +
+          '<div class="po-block"><div class="po-block-title">Shipping Address</div>' +
+            '<p>' + escapeHtml(customer.shippingAddress).replace(/\n/g,'<br>') + '</p>' +
+            '<p>Contact Person: ' + (customer.shippingContactPerson ? escapeHtml(customer.shippingContactPerson) : 'Not provided') + ' &nbsp;|&nbsp; ' + (customer.shippingContactNumber ? escapeHtml(customer.shippingContactNumber) : 'Not provided') + '</p>' +
+            (customer.seedRegNo ? '<p>Seed Reg. No: ' + escapeHtml(customer.seedRegNo) + '</p>' : '') +
+            (customer.anyOther ? '<p>Note: ' + escapeHtml(customer.anyOther) + '</p>' : '') +
+          '</div>' +
+        '</div>' +
+        '<table><thead><tr><th>Item</th><th class="num">HSN Code</th><th class="num">Labels/Roll</th><th class="num">Qty (Rolls)</th><th class="num">Total Labels</th><th class="num">Unit Price</th><th class="num">Subtotal</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '<tfoot><tr><td colspan="4">Total Quantity</td><td class="num"><strong>' + grandTotalLabels.toLocaleString() + '</strong></td><td></td><td class="num">' + fmtMoney(taxableValue) + '</td></tr></tfoot></table>' +
+        '<div class="po-summary-cols">' +
+          '<div class="po-block"><div class="po-block-title">Payment Terms</div>' +
+            '<p>' + (paymentTerms ? escapeHtml(paymentTerms) : 'Not specified on product') + '</p>' +
+          '</div>' +
+          '<div class="tax-summary">' + taxRowsHtml + '</div>' +
+        '</div>' +
+        '<div class="po-disclaimer">This Purchase Order has been generated electronically and is valid without a signature or seal.</div>' +
+      '</div>';
+
+    if(openModal){
+      var modal = document.createElement("div");
+      modal.className = "modal-overlay";
+      modal.innerHTML =
+        '<div class="modal-box">' +
+          '<div class="modal-close"><button id="closePoModalBtn">Close ✕</button></div>' +
+          html +
+          '<div class="po-actions">' +
+            '<button class="btn secondary" id="modalDownloadJsonBtn">⬇ Download JSON</button>' +
+            '<button class="btn" id="modalPrintBtn">🖨 Print / Save as PDF</button>' +
+          '</div>' +
+        '</div>';
+      $("#modalRoot").appendChild(modal);
+      $("#closePoModalBtn", modal).addEventListener("click", function(){ modal.remove(); renderMyOrders(); });
+      $("#modalPrintBtn", modal).addEventListener("click", function(){ window.print(); });
+      $("#modalDownloadJsonBtn", modal).addEventListener("click", function(){ downloadOrderJson(order, customer); });
+      modal.addEventListener("click", function(e){ if(e.target === modal){ modal.remove(); renderMyOrders(); } });
+    }
+    return html;
+  }
+
+  function downloadOrderJson(order, customer){
+    var payload = { orderId:order.id, placedAt:order.placedAt, status:order.status, customer:customer, items:order.items, grandTotal:order.total };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = order.id + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Order JSON downloaded.");
+  }
+
+  // ============================================================
+  // MODULE: CUSTOMER "MY ORDERS"
+  // ============================================================
+  function renderMyOrders(){
+    var customer = getCustomer(state.activeCustomerId);
+    $("#myOrdersCustName").textContent = customer ? customer.name : "—";
+    var wrap = $("#myOrdersList");
+    if(!customer){
+      wrap.innerHTML = '<div class="empty-state"><div class="big">🧾</div>Register or select a customer first to view orders.</div>';
+      $("#myOrdersBadge").style.display = "none";
+      return;
+    }
+    var myOrders = state.orders.filter(function(o){ return o.customerId === customer.id; }).sort(function(a,b){ return new Date(b.placedAt) - new Date(a.placedAt); });
+
+    $("#myOrdersBadge").style.display = myOrders.length ? "" : "none";
+    $("#myOrdersBadge").textContent = myOrders.length;
+
+    if(myOrders.length === 0){
+      wrap.innerHTML = '<div class="empty-state"><div class="big">🧾</div>No orders placed yet.</div>';
+      return;
+    }
+
+    wrap.innerHTML = myOrders.map(function(o){
+      var editable = isOrderEditable(o);
+      var actionsHtml = editable
+        ? '<button class="btn small secondary" data-view-po="' + o.id + '">View / Print Purchase Order</button> ' +
+          '<button class="btn small secondary" data-edit-order="' + o.id + '">Edit Order</button> ' +
+          '<button class="btn small danger" data-cancel-order="' + o.id + '">Cancel Order</button>'
+        : '<button class="btn small secondary" data-view-po="' + o.id + '">View / Print Purchase Order</button> ' +
+          '<span class="locked-note">🔒 Locked — order has been approved and can no longer be edited or cancelled</span>';
+
+      return '<div class="summary-block">' +
+        '<div class="sb-head"><span>' + o.id + ' — ' + fmtDate(o.placedAt) + '</span>' +
+          '<span class="status-pill status-' + o.status.toLowerCase() + '">' + o.status + '</span></div>' +
+        '<table class="data-table"><thead><tr><th>Item</th><th class="num">Qty (Rolls)</th><th class="num">Total Labels</th><th class="num">Subtotal</th></tr></thead><tbody>' +
+          o.items.map(function(it){ return '<tr><td>' + escapeHtml(it.name) + '</td><td class="num">' + it.qty + '</td><td class="num">' + (it.qty * it.labelsPerRoll).toLocaleString() + '</td><td class="num">' + fmtMoney(it.subtotal) + '</td></tr>'; }).join("") +
+        '</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">' + o.items.reduce(function(s,it){ return s + (it.qty*it.labelsPerRoll); },0).toLocaleString() + '</td><td class="num">' + fmtMoney(o.total) + '</td></tr></tfoot></table>' +
+        '<div style="padding:12px 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' + actionsHtml + '</div>' +
+      '</div>';
+    }).join("");
+
+    $all("[data-view-po]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var order = state.orders.filter(function(o){ return o.id === btn.dataset.viewPo; })[0];
+        renderPODocument(order, customer, true);
+      });
+    });
+
+    $all("[data-edit-order]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var order = state.orders.filter(function(o){ return o.id === btn.dataset.editOrder; })[0];
+        if(!order) return;
+        // Defensive guard: re-check editability even though the button is only rendered when editable,
+        // in case status changed in another tab/session before this click was handled.
+        if(!isOrderEditable(order)){
+          showToast("This order has been approved and can no longer be edited.");
+          renderMyOrders();
+          return;
+        }
+        if(!confirm("Editing will reopen this order's items in your cart for changes, and the original order (" + order.id + ") will be removed until you re-submit. Continue?")) return;
+
+        restoreStockForOrder(order);
+        state.cart = {};
+        order.items.forEach(function(it){
+          var p = getProduct(it.productId);
+          if(p) state.cart[it.productId] = it.qty;
+        });
+        state.orders = state.orders.filter(function(o){ return o.id !== order.id; });
+
+        showToast("Order reopened for editing. Adjust items and place the order again.");
+        showView("cust-catalog", "customer");
+      });
+    });
+
+    $all("[data-cancel-order]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var order = state.orders.filter(function(o){ return o.id === btn.dataset.cancelOrder; })[0];
+        if(!order) return;
+        if(!isOrderEditable(order)){
+          showToast("This order has been approved and can no longer be cancelled.");
+          renderMyOrders();
+          return;
+        }
+        if(!confirm("Cancel order " + order.id + "? This cannot be undone.")) return;
+
+        restoreStockForOrder(order);
+        order.status = "Cancelled";
+        order.statusHistory.push({ status:"Cancelled", at:new Date().toISOString() });
+        showToast("Order " + order.id + " cancelled.");
+        renderMyOrders();
+      });
+    });
+  }
+
+  // ============================================================
+  // MODULE 4: ADMIN — ORDERS RECEIVED
+  // ============================================================
+  function renderAdminOrders(){
+    var statusFilter = $("#orderFilterStatus").value;
+    var search = $("#orderFilterSearch").value.trim().toLowerCase();
+
+    var orders = state.orders.slice().sort(function(a,b){ return new Date(b.placedAt) - new Date(a.placedAt); });
+
+    if(statusFilter) orders = orders.filter(function(o){ return o.status === statusFilter; });
+    if(search){
+      orders = orders.filter(function(o){
+        var c = getCustomer(o.customerId);
+        var hay = (o.id + " " + (c?c.name:"") + " " + (c?c.gst:"")).toLowerCase();
+        return hay.indexOf(search) !== -1;
+      });
+    }
+
+    $("#adminOrdersBadge").style.display = state.orders.filter(function(o){return o.status==="Pending";}).length ? "" : "none";
+    $("#adminOrdersBadge").textContent = state.orders.filter(function(o){return o.status==="Pending";}).length;
+
+    var wrap = $("#adminOrdersTableWrap");
+    if(orders.length === 0){
+      wrap.innerHTML = '<div class="empty-state"><div class="big">🧾</div>No orders match the current filters.</div>';
+      return;
+    }
+
+    var rows = orders.map(function(o){
+      var c = getCustomer(o.customerId);
+      var itemSummary = o.items.map(function(it){ return it.name + ' ×' + it.qty; }).join(", ");
+      return '<tr>' +
+        '<td class="utility">' + o.id + '<br><span style="color:var(--ink-soft);font-size:0.72rem;">' + fmtDate(o.placedAt) + '</span></td>' +
+        '<td>' + escapeHtml(c ? c.name : "Unknown") + '<br><span style="color:var(--ink-soft);font-size:0.72rem;">' + (c?escapeHtml(c.contact):'') + '</span></td>' +
+        '<td style="max-width:260px;font-size:0.82rem;">' + escapeHtml(itemSummary) + '</td>' +
+        '<td class="num">' + fmtMoney(o.total) + '</td>' +
+        '<td>' +
+          '<select class="status-select" data-status-for="' + o.id + '">' +
+            STATUS_LIST.map(function(s){ return '<option value="' + s + '" ' + (s===o.status?'selected':'') + '>' + s + '</option>'; }).join("") +
+          '</select>' +
+        '</td>' +
+        '<td><button class="btn small secondary" data-view-order-po="' + o.id + '">View PO</button></td>' +
+      '</tr>';
+    }).join("");
+
+    wrap.innerHTML = '<table class="data-table"><thead><tr>' +
+      '<th>PO No.</th><th>Customer Name</th><th>Items</th><th class="num">Total</th><th>Status</th><th>Document</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+
+    $all("[data-status-for]", wrap).forEach(function(sel){
+      sel.addEventListener("change", function(){
+        var order = state.orders.filter(function(o){ return o.id === sel.dataset.statusFor; })[0];
+        if(!order) return;
+        order.status = sel.value;
+        order.statusHistory.push({ status:sel.value, at:new Date().toISOString() });
+        showToast("Order " + order.id + " marked " + sel.value + ".");
+        renderAdminOrders();
+        if($("#view-admin-dashboard").style.display !== "none") renderDashboard();
+      });
+    });
+    $all("[data-view-order-po]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var order = state.orders.filter(function(o){ return o.id === btn.dataset.viewOrderPo; })[0];
+        var customer = getCustomer(order.customerId);
+        renderPODocument(order, customer, true);
+      });
+    });
+  }
+  $("#orderFilterStatus").addEventListener("change", renderAdminOrders);
+  $("#orderFilterSearch").addEventListener("input", renderAdminOrders);
+
+  // ============================================================
+  // ADMIN — CUSTOMERS LIST
+  // ============================================================
+  function renderAdminCustomers(){
+    var wrap = $("#adminCustomersTableWrap");
+    if(state.customers.length === 0){
+      wrap.innerHTML = '<div class="empty-state"><div class="big">👥</div>No customers registered yet.</div>';
+      return;
+    }
+    var rows = state.customers.map(function(c){
+      var orderCount = state.orders.filter(function(o){ return o.customerId === c.id; }).length;
+      var docCount = (c.documents || []).length;
+      return '<tr>' +
+        '<td><strong>' + escapeHtml(c.name) + '</strong><br><span style="font-size:0.72rem;color:var(--ink-soft);">' + fmtDate(c.registeredAt) + '</span></td>' +
+        '<td class="utility">' + escapeHtml(c.customerNumericId || "—") + '</td>' +
+        '<td class="utility">' + escapeHtml(c.username) + '</td>' +
+        '<td class="utility">' + (c.gst ? escapeHtml(c.gst) : '—') + '</td>' +
+        '<td class="utility">' + (c.pan ? escapeHtml(c.pan) : '—') + '</td>' +
+        '<td>' + escapeHtml(c.contact) + '<br><span style="font-size:0.78rem;color:var(--ink-soft);">' + escapeHtml(c.email) + '</span></td>' +
+        '<td class="num">' + orderCount + '</td>' +
+        '<td class="num">' + (docCount ? ('📄 ' + docCount) : '—') + '</td>' +
+        '<td><button class="btn small secondary" data-edit-customer="' + c.id + '">Edit</button></td>' +
+      '</tr>';
+    }).join("");
+    wrap.innerHTML = '<table class="data-table"><thead><tr><th>Customer</th><th>Customer ID</th><th>Username</th><th>GSTIN</th><th>PAN</th><th>Contact</th><th class="num">Orders</th><th class="num">Docs</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+    $all("[data-edit-customer]", wrap).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        openEditCustomerModal(btn.dataset.editCustomer);
+      });
+    });
+  }
+
+  function openEditCustomerModal(customerId){
+    var c = getCustomer(customerId);
+    if(!c) return;
+
+    var modal = document.createElement("div");
+    modal.className = "modal-overlay";
+    modal.innerHTML =
+      '<div class="modal-box">' +
+        '<div class="modal-close"><button id="closeEditCustModalBtn">Close ✕</button></div>' +
+        '<div class="panel" style="margin:0; box-shadow:none; border:none;">' +
+          '<h1 class="panel-title">Edit Customer</h1>' +
+          '<p class="panel-sub">Update registration details for <strong>' + escapeHtml(c.name) + '</strong>. Fields marked <span class="req">*</span> are required.</p>' +
+          '<form id="editCustForm" novalidate>' +
+            '<div class="grid">' +
+              '<div class="field full"><label for="ecName">Customer / Firm Name <span class="req">*</span></label>' +
+                '<input type="text" id="ecName" value="' + escapeHtml(c.name) + '">' +
+                '<div class="errmsg" data-for="ecName"></div></div>' +
+
+              '<div class="field full"><label for="ecBilling">Billing Address <span class="req">*</span></label>' +
+                '<textarea id="ecBilling">' + escapeHtml(c.billingAddress) + '</textarea>' +
+                '<div class="errmsg" data-for="ecBilling"></div></div>' +
+
+              '<div class="field"><label for="ecBillingContactPerson">Billing Contact Person <span class="req">*</span></label>' +
+                '<input type="text" id="ecBillingContactPerson" value="' + escapeHtml(c.billingContactPerson || "") + '">' +
+                '<div class="errmsg" data-for="ecBillingContactPerson"></div></div>' +
+
+              '<div class="field"><label for="ecBillingContactNumber">Billing Contact Number <span class="req">*</span></label>' +
+                '<input type="tel" id="ecBillingContactNumber" maxlength="15" value="' + escapeHtml(c.billingContactNumber || "") + '">' +
+                '<div class="errmsg" data-for="ecBillingContactNumber"></div></div>' +
+
+              '<div class="field full"><label for="ecShipping">Shipping Address <span class="req">*</span></label>' +
+                '<textarea id="ecShipping">' + escapeHtml(c.shippingAddress) + '</textarea>' +
+                '<div class="errmsg" data-for="ecShipping"></div></div>' +
+
+              '<div class="field"><label for="ecShippingContactPerson">Shipping Contact Person <span class="req">*</span></label>' +
+                '<input type="text" id="ecShippingContactPerson" value="' + escapeHtml(c.shippingContactPerson || "") + '">' +
+                '<div class="errmsg" data-for="ecShippingContactPerson"></div></div>' +
+
+              '<div class="field"><label for="ecShippingContactNumber">Shipping Contact Number <span class="req">*</span></label>' +
+                '<input type="tel" id="ecShippingContactNumber" maxlength="15" value="' + escapeHtml(c.shippingContactNumber || "") + '">' +
+                '<div class="errmsg" data-for="ecShippingContactNumber"></div></div>' +
+
+              '<div class="field"><label for="ecGst">GST Number <span class="opt">optional</span></label>' +
+                '<input type="text" id="ecGst" maxlength="15" value="' + escapeHtml(c.gst) + '" style="text-transform:uppercase;">' +
+                '<div class="errmsg" data-for="ecGst"></div></div>' +
+
+              '<div class="field"><label for="ecPan">PAN No. <span class="opt">optional</span></label>' +
+                '<input type="text" id="ecPan" maxlength="10" value="' + escapeHtml(c.pan) + '" style="text-transform:uppercase;">' +
+                '<div class="errmsg" data-for="ecPan"></div></div>' +
+
+              '<div class="field"><label for="ecContact">Contact Number <span class="req">*</span></label>' +
+                '<input type="tel" id="ecContact" maxlength="15" value="' + escapeHtml(c.contact) + '">' +
+                '<div class="errmsg" data-for="ecContact"></div></div>' +
+
+              '<div class="field"><label for="ecEmail">Email ID <span class="req">*</span></label>' +
+                '<input type="email" id="ecEmail" value="' + escapeHtml(c.email) + '">' +
+                '<div class="errmsg" data-for="ecEmail"></div></div>' +
+
+              '<div class="field"><label for="ecSeedReg">Seed Registration No. <span class="opt">optional</span></label>' +
+                '<input type="text" id="ecSeedReg" value="' + escapeHtml(c.seedRegNo || "") + '"></div>' +
+
+              '<div class="field"><label for="ecOther">Any Other <span class="opt">optional</span></label>' +
+                '<input type="text" id="ecOther" value="' + escapeHtml(c.anyOther || "") + '"></div>' +
+            '</div>' +
+
+            '<h2 class="section-title" style="margin-top:26px;">Documents</h2>' +
+            '<p class="panel-sub" style="margin-bottom:14px;">View, download, or manage documents uploaded by this customer.</p>' +
+            '<div id="ecDocsList" class="doc-list"></div>' +
+            '<div class="field full" style="margin-top:12px;">' +
+              '<label for="ecDocsUpload">Add More Documents <span class="opt">optional</span></label>' +
+              '<input type="file" id="ecDocsUpload" multiple accept=".pdf,.jpg,.jpeg,.png,.webp">' +
+              '<div class="errmsg" data-for="ecDocsUpload"></div>' +
+            '</div>' +
+
+            '<h2 class="section-title" style="margin-top:26px;">Login Credentials</h2>' +
+            '<p class="panel-sub" style="margin-bottom:18px;">Edit the username or set a new password. Leave password blank to keep it unchanged.</p>' +
+            '<div class="grid">' +
+              '<div class="field"><label for="ecUsername">Username <span class="req">*</span></label>' +
+                '<input type="text" id="ecUsername" value="' + escapeHtml(c.username) + '">' +
+                '<div class="errmsg" data-for="ecUsername"></div></div>' +
+
+              '<div class="field"><label for="ecPassword">New Password <span class="opt">leave blank to keep current</span></label>' +
+                '<input type="text" id="ecPassword" placeholder="Minimum 6 characters" autocomplete="new-password">' +
+                '<div class="errmsg" data-for="ecPassword"></div></div>' +
+
+              '<div class="field full">' +
+                '<button type="button" class="btn small secondary" id="ecResetPasswordBtn">🔄 Generate Random Password</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="actions">' +
+              '<button type="button" class="btn secondary" id="cancelEditCustBtn">Cancel</button>' +
+              '<button type="submit" class="btn">Save Changes ✓</button>' +
+            '</div>' +
+          '</form>' +
+        '</div>' +
+      '</div>';
+    $("#modalRoot").appendChild(modal);
+
+    function close(){ modal.remove(); }
+    $("#closeEditCustModalBtn", modal).addEventListener("click", close);
+    $("#cancelEditCustBtn", modal).addEventListener("click", close);
+    modal.addEventListener("click", function(e){ if(e.target === modal) close(); });
+
+    // ---- Documents management (working copy, committed to customer record on save) ----
+    var editDocs = (c.documents || []).slice();
+
+    function renderEcDocsList(){
+      var wrap = $("#ecDocsList", modal);
+      if(editDocs.length === 0){
+        wrap.innerHTML = '<p style="font-size:0.82rem; color:var(--ink-soft); font-style:italic;">No documents uploaded yet.</p>';
+        return;
+      }
+      wrap.innerHTML = editDocs.map(function(d){
+        return '<div class="doc-item"><span class="doc-name">📄 ' + escapeHtml(d.fileName) + '</span>' +
+          '<span class="doc-size">' + fmtFileSize(d.size) + '</span>' +
+          '<a href="' + d.dataUrl + '" download="' + escapeHtml(d.fileName) + '" target="_blank">View / Download</a>' +
+          '<button type="button" data-remove-ecdoc="' + d.id + '">Remove</button></div>';
+      }).join("");
+      $all("[data-remove-ecdoc]", wrap).forEach(function(btn){
+        btn.addEventListener("click", function(){
+          if(!confirm("Remove this document from the customer's record?")) return;
+          editDocs = editDocs.filter(function(d){ return d.id !== btn.dataset.removeEcdoc; });
+          renderEcDocsList();
+        });
+      });
+    }
+    renderEcDocsList();
+
+    $("#ecDocsUpload", modal).addEventListener("change", function(){
+      var files = Array.prototype.slice.call(this.files || []);
+      var errEl = $('.errmsg[data-for="ecDocsUpload"]', modal);
+      errEl.textContent = "";
+      var MAX_DOC_SIZE = 5 * 1024 * 1024;
+      var oversized = files.filter(function(f){ return f.size > MAX_DOC_SIZE; });
+      if(oversized.length){
+        errEl.textContent = "Skipped (over 5MB): " + oversized.map(function(f){ return f.name; }).join(", ");
+      }
+      var accepted = files.filter(function(f){ return f.size <= MAX_DOC_SIZE; });
+      var readPromises = accepted.map(function(file){
+        return new Promise(function(resolve){
+          var reader = new FileReader();
+          reader.onload = function(){
+            resolve({ id: uid("DOC"), fileName: file.name, mimeType: file.type || "application/octet-stream", size: file.size, dataUrl: reader.result });
+          };
+          reader.onerror = function(){ resolve(null); };
+          reader.readAsDataURL(file);
+        });
+      });
+      Promise.all(readPromises).then(function(results){
+        results.filter(Boolean).forEach(function(d){ editDocs.push(d); });
+        renderEcDocsList();
+        $("#ecDocsUpload", modal).value = "";
+      });
+    });
+
+    ["ecGst","ecPan"].forEach(function(id){
+      $("#" + id, modal).addEventListener("input", function(){ this.value = this.value.toUpperCase(); });
+    });
+    $("#ecUsername", modal).addEventListener("input", function(){
+      this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    });
+    $("#ecResetPasswordBtn", modal).addEventListener("click", function(){
+      var chars = "abcdefghjkmnpqrstuvwxyz23456789";
+      var generated = "";
+      for(var i=0; i<8; i++) generated += chars.charAt(Math.floor(Math.random()*chars.length));
+      $("#ecPassword", modal).value = generated;
+      $("#ecPassword", modal).classList.remove("invalid");
+      $('.errmsg[data-for="ecPassword"]', modal).textContent = "";
+      showToast("New password generated — remember to save and share it with the customer.");
+    });
+
+    var editValidators = {
+      ecName: function(v){ return v.trim() ? "" : "Customer name is required."; },
+      ecBilling: function(v){ return v.trim() ? "" : "Billing address is required."; },
+      ecBillingContactPerson: function(v){ return v.trim() ? "" : "Billing contact person is required."; },
+      ecBillingContactNumber: function(v){
+        v = v.trim();
+        if(!v) return "Billing contact number is required.";
+        var digits = v.replace(/\D/g,"");
+        if(digits.length < 10 || digits.length > 13) return "Enter a valid contact number.";
+        return "";
+      },
+      ecShipping: function(v){ return v.trim() ? "" : "Shipping address is required."; },
+      ecShippingContactPerson: function(v){ return v.trim() ? "" : "Shipping contact person is required."; },
+      ecShippingContactNumber: function(v){
+        v = v.trim();
+        if(!v) return "Shipping contact number is required.";
+        var digits = v.replace(/\D/g,"");
+        if(digits.length < 10 || digits.length > 13) return "Enter a valid contact number.";
+        return "";
+      },
+      ecGst: function(v){
+        v = v.trim().toUpperCase();
+        if(!v) return ""; // optional field
+        if(!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v)) return "Enter a valid 15-character GSTIN, or leave blank.";
+        return "";
+      },
+      ecPan: function(v){
+        v = v.trim().toUpperCase();
+        if(!v) return ""; // optional field
+        if(!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v)) return "Enter a valid 10-character PAN, or leave blank.";
+        return "";
+      },
+      ecContact: function(v){
+        v = v.trim();
+        if(!v) return "Contact number is required.";
+        var digits = v.replace(/\D/g,"");
+        if(digits.length < 10 || digits.length > 13) return "Enter a valid contact number.";
+        return "";
+      },
+      ecEmail: function(v){
+        v = v.trim();
+        if(!v) return "Email ID is required.";
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Enter a valid email address.";
+        return "";
+      },
+      ecUsername: function(v){
+        v = v.trim().toLowerCase();
+        if(!v) return "Username is required.";
+        if(!/^[a-z0-9_]+$/.test(v)) return "Username can only contain lowercase letters, numbers and underscores.";
+        if(state.customers.some(function(x){ return x.username === v && x.id !== c.id; })) return "This username is already taken.";
+        return "";
+      },
+      ecPassword: function(v){
+        if(!v) return ""; // blank = keep current password
+        if(v.length < 6) return "Password must be at least 6 characters.";
+        return "";
+      }
+    };
+
+    function validateEditField(name){
+      var el = $("#" + name, modal);
+      var msg = editValidators[name](el.value);
+      var errEl = $('.errmsg[data-for="' + name + '"]', modal);
+      if(msg){ el.classList.add("invalid"); if(errEl) errEl.textContent = msg; return false; }
+      el.classList.remove("invalid"); if(errEl) errEl.textContent = ""; return true;
+    }
+
+    Object.keys(editValidators).forEach(function(name){
+      $("#" + name, modal).addEventListener("blur", function(){ validateEditField(name); });
+    });
+
+    $("#editCustForm", modal).addEventListener("submit", function(e){
+      e.preventDefault();
+      var ok = true;
+      Object.keys(editValidators).forEach(function(name){ if(!validateEditField(name)) ok = false; });
+      if(!ok){
+        showToast("Please correct the highlighted fields.");
+        var firstInvalid = $(".invalid", modal);
+        if(firstInvalid) firstInvalid.scrollIntoView({behavior:"smooth", block:"center"});
+        return;
+      }
+
+      var newGst = $("#ecGst", modal).value.trim().toUpperCase();
+      var clash = newGst ? state.customers.filter(function(x){ return x.gst && x.gst === newGst && x.id !== c.id; })[0] : null;
+      if(clash){
+        showToast("Another customer already uses this GST number.");
+        $("#ecGst", modal).classList.add("invalid");
+        $('.errmsg[data-for="ecGst"]', modal).textContent = "This GSTIN is already registered to " + clash.name + ".";
+        return;
+      }
+
+      c.name = $("#ecName", modal).value.trim();
+      c.billingAddress = $("#ecBilling", modal).value.trim();
+      c.billingContactPerson = $("#ecBillingContactPerson", modal).value.trim();
+      c.billingContactNumber = $("#ecBillingContactNumber", modal).value.trim();
+      c.shippingAddress = $("#ecShipping", modal).value.trim();
+      c.shippingContactPerson = $("#ecShippingContactPerson", modal).value.trim();
+      c.shippingContactNumber = $("#ecShippingContactNumber", modal).value.trim();
+      c.gst = newGst;
+      c.pan = $("#ecPan", modal).value.trim().toUpperCase();
+      c.contact = $("#ecContact", modal).value.trim();
+      c.email = $("#ecEmail", modal).value.trim();
+      c.seedRegNo = $("#ecSeedReg", modal).value.trim();
+      c.anyOther = $("#ecOther", modal).value.trim();
+      c.username = $("#ecUsername", modal).value.trim().toLowerCase();
+      c.documents = editDocs.slice();
+      var newPassword = $("#ecPassword", modal).value;
+      var passwordChanged = !!newPassword;
+      if(passwordChanged) c.password = newPassword;
+
+      close();
+      renderAdminCustomers();
+      if(state.activeCustomerId === c.id){
+        $("#catalogCustName").textContent = c.name;
+        $("#myOrdersCustName").textContent = c.name;
+      }
+      showToast("Customer details updated: " + c.name + (passwordChanged ? " (password reset)" : ""));
+    });
+  }
+
+  // ============================================================
+  // ADMIN — DASHBOARD
+  // ============================================================
+  function renderDashboard(){
+    var totalCustomers = state.customers.length;
+    var totalOrders = state.orders.length;
+    var revenue = state.orders.reduce(function(s,o){ return s + o.total; }, 0);
+
+    $("#dashStats").innerHTML =
+      statCard("Registered Customers", totalCustomers, "") +
+      statCard("Orders Received", totalOrders, "") +
+      statCard("Total Revenue", fmtMoney(revenue), "");
+
+    var statusesToShow = ["Pending","Approved","Dispatched","Delivered"];
+    var statusHtml = statusesToShow.map(function(s){
+      var count = state.orders.filter(function(o){ return o.status === s; }).length;
+      return statCard(s, count, "", s==="Pending" && count>0);
+    }).join("");
+    $("#dashStatusStats").innerHTML = statusHtml;
+
+    setDefaultReportDates("repRegFrom", "repRegTo", 30);
+    setDefaultReportDates("repQtyFrom", "repQtyTo", 30);
+    setDefaultReportDates("repStatusFrom", "repStatusTo", 30);
+  }
+  function statCard(label, value, sub, alert){
+    return '<div class="stat-card ' + (alert?'alert':'') + '"><div class="label">' + label + '</div><div class="value">' + value + '</div>' + (sub?'<div class="sub">'+sub+'</div>':'') + '</div>';
+  }
+
+  // ============================================================
+  // REPORTS (date-ranged, printable to PDF)
+  // ============================================================
+  function parseDateInput(val, endOfDay){
+    if(!val) return null;
+    var d = new Date(val + "T" + (endOfDay ? "23:59:59" : "00:00:00"));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function setDefaultReportDates(fromId, toId, daysBack){
+    var to = new Date();
+    var from = new Date();
+    from.setDate(from.getDate() - (daysBack||30));
+    function fmt(d){ return d.toISOString().slice(0,10); }
+    if(!$("#"+fromId).value) $("#"+fromId).value = fmt(from);
+    if(!$("#"+toId).value) $("#"+toId).value = fmt(to);
+  }
+
+  function openReportModal(titleText, subtitleText, bodyHtml){
+    var modal = document.createElement("div");
+    modal.className = "modal-overlay";
+    modal.innerHTML =
+      '<div class="modal-box">' +
+        '<div class="modal-close"><button id="closeReportModalBtn">Close ✕</button></div>' +
+        '<div class="po-doc" id="reportDocRoot">' +
+          '<div class="po-header">' +
+            '<div class="po-co">' + escapeHtml(titleText) + '<small>' + escapeHtml(subtitleText) + '</small></div>' +
+            '<div class="po-meta"><div class="po-title">REPORT</div>Generated: ' + fmtDate(new Date().toISOString()) + '</div>' +
+          '</div>' +
+          bodyHtml +
+          '<div class="po-footer"><span>Generated electronically via Order Desk system.</span><span></span></div>' +
+        '</div>' +
+        '<div class="po-actions">' +
+          '<button class="btn" id="reportPrintBtn">🖨 Print / Save as PDF</button>' +
+        '</div>' +
+      '</div>';
+    $("#modalRoot").appendChild(modal);
+    $("#closeReportModalBtn", modal).addEventListener("click", function(){ modal.remove(); });
+    $("#reportPrintBtn", modal).addEventListener("click", function(){ window.print(); });
+    modal.addEventListener("click", function(e){ if(e.target === modal) modal.remove(); });
+  }
+
+  function rangeLabel(from, to){
+    function fmt(d){ return d ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : "—"; }
+    return fmt(from) + " to " + fmt(to);
+  }
+
+  // ---- Report 1: Customer Registrations ----
+  $("#downloadRegReportBtn").addEventListener("click", function(){
+    var from = parseDateInput($("#repRegFrom").value, false);
+    var to = parseDateInput($("#repRegTo").value, true);
+    if(!from || !to){ showToast("Please select both From and To dates."); return; }
+    if(from > to){ showToast("'From' date must be before 'To' date."); return; }
+
+    var rows = state.customers.filter(function(c){
+      var d = new Date(c.registeredAt);
+      return d >= from && d <= to;
+    }).sort(function(a,b){ return new Date(a.registeredAt) - new Date(b.registeredAt); });
+
+    var tableHtml;
+    if(rows.length === 0){
+      tableHtml = '<p style="padding:20px 0;color:#666;">No customers registered in this date range.</p>';
+    } else {
+      tableHtml = '<table><thead><tr><th>Customer / Firm</th><th>GSTIN</th><th>PAN</th><th>Contact</th><th>Email</th><th>Registered On</th></tr></thead><tbody>' +
+        rows.map(function(c){
+          return '<tr><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.gst) + '</td><td>' + escapeHtml(c.pan) + '</td>' +
+            '<td>' + escapeHtml(c.contact) + '</td><td>' + escapeHtml(c.email) + '</td><td>' + fmtDate(c.registeredAt) + '</td></tr>';
+        }).join("") +
+        '</tbody><tfoot><tr><td colspan="5">Total Registrations</td><td>' + rows.length + '</td></tr></tfoot></table>';
+    }
+
+    var body = '<div class="po-cols" style="grid-template-columns:1fr;"><div class="po-block">' +
+      '<div class="po-block-title">Date Range</div><p>' + rangeLabel(from, to) + '</p></div></div>' + tableHtml;
+
+    openReportModal("Customer Registration Report", "Registrations within selected date range", body);
+  });
+
+  // ---- Report 2: Quantity Received (by product) ----
+  $("#downloadQtyReportBtn").addEventListener("click", function(){
+    var from = parseDateInput($("#repQtyFrom").value, false);
+    var to = parseDateInput($("#repQtyTo").value, true);
+    if(!from || !to){ showToast("Please select both From and To dates."); return; }
+    if(from > to){ showToast("'From' date must be before 'To' date."); return; }
+
+    var ordersInRange = state.orders.filter(function(o){
+      var d = new Date(o.placedAt);
+      return d >= from && d <= to;
+    });
+
+    var tableHtml;
+    if(ordersInRange.length === 0){
+      tableHtml = '<p style="padding:20px 0;color:#666;">No orders placed in this date range.</p>';
+    } else {
+      // Build per-product, per-customer breakdown
+      var products = {};
+      ordersInRange.forEach(function(o){
+        var customer = getCustomer(o.customerId);
+        var customerName = customer ? customer.name : "Unknown";
+        o.items.forEach(function(it){
+          if(!products[it.productId]){
+            products[it.productId] = { name:it.name, hsnCode:it.hsnCode, supplierCode:it.supplierCode || "—", labelsPerRoll:it.labelsPerRoll, lines:[] };
+          }
+          products[it.productId].lines.push({
+            customerName: customerName, poNo: o.id, poDate: fmtDate(o.placedAt),
+            qty: it.qty, totalLabels: it.qty * it.labelsPerRoll, revenue: it.subtotal
+          });
+        });
+      });
+
+      var grandQty = 0, grandLabels = 0, grandRevenue = 0;
+      var dataRows = "";
+
+      Object.keys(products).forEach(function(pid){
+        var p = products[pid];
+        var prodQty = p.lines.reduce(function(s,l){ return s + l.qty; }, 0);
+        var prodLabels = p.lines.reduce(function(s,l){ return s + l.totalLabels; }, 0);
+        var prodRevenue = p.lines.reduce(function(s,l){ return s + l.revenue; }, 0);
+        grandQty += prodQty; grandLabels += prodLabels; grandRevenue += prodRevenue;
+
+        // Product header row
+        dataRows += '<tr style="background:#f0ede4; font-weight:700;">' +
+          '<td colspan="3">' + escapeHtml(p.name) +
+          ' <span style="font-weight:400; font-size:0.8rem; color:#666;">HSN: ' + escapeHtml(p.hsnCode) + ' | ' + escapeHtml(p.supplierCode) + '</span></td>' +
+          '<td class="num">' + prodQty.toLocaleString() + ' rolls</td>' +
+          '<td class="num">' + prodLabels.toLocaleString() + '</td>' +
+          '<td class="num">' + fmtMoney(prodRevenue) + '</td>' +
+          '</tr>';
+
+        // Line per customer order
+        p.lines.forEach(function(l){
+          dataRows += '<tr>' +
+            '<td style="padding-left:16px; color:#777; font-size:0.82rem;">→ ' + escapeHtml(l.customerName) + '</td>' +
+            '<td>' + l.poNo + '</td>' +
+            '<td>' + l.poDate + '</td>' +
+            '<td class="num">' + l.qty.toLocaleString() + '</td>' +
+            '<td class="num">' + l.totalLabels.toLocaleString() + '</td>' +
+            '<td class="num">' + fmtMoney(l.revenue) + '</td>' +
+          '</tr>';
+        });
+      });
+
+      tableHtml = '<table><thead><tr>' +
+        '<th>Product / Customer</th><th>PO No.</th><th>PO Date</th>' +
+        '<th class="num">Qty (Rolls)</th><th class="num">Total Labels</th><th class="num">Revenue</th>' +
+        '</tr></thead><tbody>' + dataRows + '</tbody>' +
+        '<tfoot><tr><td colspan="3">Grand Total</td>' +
+        '<td class="num">' + grandQty.toLocaleString() + ' rolls</td>' +
+        '<td class="num">' + grandLabels.toLocaleString() + '</td>' +
+        '<td class="num">' + fmtMoney(grandRevenue) + '</td>' +
+        '</tr></tfoot></table>';
+    }
+
+    var body = '<div class="po-cols" style="grid-template-columns:1fr;"><div class="po-block">' +
+      '<div class="po-block-title">Date Range</div><p>' + rangeLabel(from, to) + '</p></div></div>' + tableHtml;
+
+    openReportModal("Quantity Received Report", "Quantity ordered per product, with customer breakdown", body);
+  });
+
+  // ---- Report 3: Orders by Status ----
+  $("#downloadStatusReportBtn").addEventListener("click", function(){
+    var from = parseDateInput($("#repStatusFrom").value, false);
+    var to = parseDateInput($("#repStatusTo").value, true);
+    if(!from || !to){ showToast("Please select both From and To dates."); return; }
+    if(from > to){ showToast("'From' date must be before 'To' date."); return; }
+
+    var ordersInRange = state.orders.filter(function(o){
+      var d = new Date(o.placedAt);
+      return d >= from && d <= to;
+    }).sort(function(a,b){ return new Date(a.placedAt) - new Date(b.placedAt); });
+
+    var bodyParts = [];
+    bodyParts.push('<div class="po-cols" style="grid-template-columns:1fr;"><div class="po-block">' +
+      '<div class="po-block-title">Date Range</div><p>' + rangeLabel(from, to) + '</p></div></div>');
+
+    if(ordersInRange.length === 0){
+      bodyParts.push('<p style="padding:20px 0;color:#666;">No orders placed in this date range.</p>');
+    } else {
+      STATUS_LIST.forEach(function(status){
+        var group = ordersInRange.filter(function(o){ return o.status === status; });
+        if(group.length === 0) return;
+        var groupTotal = group.reduce(function(s,o){ return s + o.total; }, 0);
+        bodyParts.push('<div class="po-block-title" style="margin-top:18px;">' + status + ' (' + group.length + ' orders)</div>');
+        bodyParts.push('<table><thead><tr><th>PO No.</th><th>Customer Name</th><th>PO Date</th><th class="num">Total</th></tr></thead><tbody>' +
+          group.map(function(o){
+            var c = getCustomer(o.customerId);
+            return '<tr><td>' + o.id + '</td><td>' + escapeHtml(c ? c.name : "Unknown") + '</td><td>' + fmtDate(o.placedAt) + '</td><td class="num">' + fmtMoney(o.total) + '</td></tr>';
+          }).join("") +
+          '</tbody><tfoot><tr><td colspan="3">Subtotal — ' + status + '</td><td class="num">' + fmtMoney(groupTotal) + '</td></tr></tfoot></table>');
+      });
+      var grandTotal = ordersInRange.reduce(function(s,o){ return s + o.total; }, 0);
+      bodyParts.push('<table style="margin-top:18px;"><tfoot><tr><td>Grand Total — All Statuses (' + ordersInRange.length + ' orders)</td><td class="num">' + fmtMoney(grandTotal) + '</td></tr></tfoot></table>');
+    }
+
+    openReportModal("Orders by Status Report", "All orders grouped by status within selected date range", bodyParts.join(""));
+  });
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  seedDemoProducts();
+  showAuthScreen("register");
+
+})();
+</script>
+
+</body>
+</html>
